@@ -21,7 +21,6 @@ def SBML_single(format, name, dataset_dir) -> list[deepsnap.graph.Graph]:
     nxG = graph_from_celldesigner(get_dataset(name))
 
     # do not really have extracted real node features yet but have to set some
-    # do not
     for nodeIx in nxG.nodes:
         feat = np.zeros(1)
         feat = torch.from_numpy(feat).to(torch.float)
@@ -55,10 +54,13 @@ def graph_from_celldesigner(path) -> nx.Graph:
         del rxn_data['reactants']
         del rxn_data['products']
         del rxn_data['modifiers']
-        reaction_node = upsert_node(G, rxn['id'], **rxn_data)  # we use id as key and the entire dict (containg id) as additional attributes
+        reaction_node = G.add_node(rxn['id'], **rxn_data)  # we use id as key and the entire dict (containg id) as additional attributes
         # do not need to explicitly denote here that this is a reaction node because we already set its `type` attribute
         for neighbour_id in rxn['reactants'] + rxn['products'] + rxn['modifiers']:
-            G.add_edge(rxn['id'], neighbour_id)  # disregard direction for now
+            if neighbour_id in G.nodes:  # `add_edge` adds nodes if they don't exist yet
+                                         # there might be excluded species that do not appear in model.species
+                                         # but are referenced in a reaction in model.reactions
+                G.add_edge(rxn['id'], neighbour_id)  # disregard direction for now
 
     return G
 
@@ -88,6 +90,11 @@ class CellDesignerModel:
 
     @functools.cached_property
     def species_aliases(self) -> list[dict]:
+        """
+        Note that this does not consider `listOfComplexSpeciesAliases`. Omitted for now because we are currently not
+        considering complex species in the first place.
+        :return:
+        """
         cd_extension = self.tree.find("/model/annotation/celldesigner:extension", self.nsmap)
         assert cd_extension is not None
         speciesAliases = cd_extension.findall("celldesigner:listOfSpeciesAliases/celldesigner:speciesAlias", self.nsmap)
@@ -109,8 +116,8 @@ class CellDesignerModel:
     def species(self) -> list[dict]:
         listOfSpeciesEl = self.tree.find("/model/listOfSpecies", self.nsmap)
         assert listOfSpeciesEl is not None
-        r = []
-        for species in listOfSpeciesEl.findall('species', self.nsmap):
+
+        def get_species_dict(species):
             d = {}
             # species id (or should we use the `metaid` attrib instead?)
             d['id'] = species.attrib['id']
@@ -119,12 +126,24 @@ class CellDesignerModel:
             cd_annots = species.find("annotation/celldesigner:extension", self.nsmap)
             d['class'] = cd_annots.find("celldesigner:speciesIdentity/celldesigner:class", self.nsmap).text
             # TODO reconsider characterisation of duplicates
+            # ↝ [[how to determine duplicates in validation networks]]
             d['is_duplicate'] = species.attrib['id'] in self.duplicate_aliases
             d['node_label'] = d['is_duplicate']  # GG expects this name
-            # TODO annotations, ↝ read-annotations.ipynb
-            r.append(d)
-        return r
+            # TODO annotations, ↝ read-annotations.ipynb ↝ [[exploit annotations for features]]
+            return d
 
+        return [
+            d for d in [
+                get_species_dict(species) for species in listOfSpeciesEl.findall('species', self.nsmap)
+            ]
+            if not self.is_excluded_species(d)
+        ]
+
+
+    @staticmethod
+    def is_excluded_species(d):
+        if cfg.dataset.exclude_complex_species and d['class'] == "COMPLEX":
+            return True
 
     @functools.cached_property
     def reactions(self):
@@ -136,7 +155,7 @@ class CellDesignerModel:
         for rxn in listOfRxnEl.findall('reaction', self.nsmap):
             d = {}
             d['id'] = rxn.attrib['id']
-            d['type'] = 'reaction'
+            d['class'] = 'reaction'
             d['node_label'] = 0  # placeholder, should not be used
             d['reactants'] = [extract_species_reference(el) for el in rxn.findall("listOfReactants/speciesReference", self.nsmap)]
             d['products'] = [extract_species_reference(el) for el in rxn.findall("listOfProducts/speciesReference", self.nsmap)]
