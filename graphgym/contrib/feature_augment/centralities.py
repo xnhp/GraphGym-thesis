@@ -106,33 +106,34 @@ def ego_centrality_func(graph, **kwargs):
 register_feature_augment('node_ego_centralities', ego_centrality_func)
 
 
-def neighbour_centrality_statistics_func(nxG):
+def neighbour_centrality_statistics_func(graph, **kwargs):
     """
-    Statistics (mean, max, min, stddev) or centralities of neighbour nodes, for each node.
+    Statistics (mean, max, min, stddev) of centralities of neighbour nodes, for each node.
+    # TODO also do this for distance sets
     """
+    nxG = graph.G
     t = TicToc()
     t.tic()
     feats = []
+    # compute all centralities
+    betweenness = (nx.betweenness_centrality(nxG))
+    t.toc("betweeness centrality (whole graph)", restart=True)
+    degree = (nx.degree_centrality(nxG))
+    t.toc("degree centrality (whole graph)", restart=True)
+    closeness = (nx.algorithms.centrality.closeness_centrality(nxG))
+    t.toc("closeness centrality (whole graph)", restart=True)
+    eigenvector = (nx.algorithms.centrality.eigenvector_centrality(nxG))
+    t.toc("eigenvector centrality (whole graph)", restart=True)
+    # then, for each neighbourhood, fetch and aggregate according centrs
     for node in nxG.nodes:
-        egoG = networkx.generators.ego.ego_graph(nxG,
-                                                 node,
-                                                 radius=1,
-                                                 center=False,
-                                                 undirected=True)
-
-        betweenness = list(nx.betweenness_centrality(egoG).values())
-        degree = list(nx.degree_centrality(egoG).values())
-        closeness = list(nx.algorithms.centrality.closeness_centrality(egoG).values())
-        eigenvector = list(nx.algorithms.centrality.eigenvector_centrality(egoG).values())
-
+        neighbs = nxG.neighbors(node)
         def compute_stats(l):
             return [statistics.mean(l), min(l), max(l), statistics.stdev(l)]
-
         feats.append([
-            compute_stats(closeness),
-            compute_stats(eigenvector),
-            compute_stats(degree),
-            compute_stats(betweenness)
+            compute_stats([betweenness[neighb] for neighb in neighbs]),
+            compute_stats([degree[neighb] for neighb in neighbs]),
+            compute_stats([closeness[neighb] for neighb in neighbs]),
+            compute_stats([eigenvector[neighb] for neighb in neighbs])
         ])
     assert len(feats) == len(nxG.nodes)
     t.toc("Computed neighbour centrality statistics")
