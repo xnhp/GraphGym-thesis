@@ -14,6 +14,8 @@ def distance_set_sz_func(graph, **kwargs):
     :return:
     """
 
+    # TODO also compute statistics on these sizes
+
     def acc_nodes_at_dist(visited, next, encountered, at_distance, acc):
         acc.append(len(encountered))
 
@@ -21,12 +23,11 @@ def distance_set_sz_func(graph, **kwargs):
         l += [val] * (sz - len(l))
         return l
 
-
     t = TicToc()
     t.tic()
-    dist_sets = [bfs_accumulate(graph.G, node, 5, acc_nodes_at_dist, []) for node in graph.G.nodes]
+    dist_sets_szs = [bfs_accumulate(graph.G, node, 5, acc_nodes_at_dist, []) for node in graph.G.nodes]
     t.toc("distance set sizes")
-    return dist_sets
+    return dist_sets_szs
 
 register_feature_augment('node_distance_set_size', distance_set_sz_func)
 
