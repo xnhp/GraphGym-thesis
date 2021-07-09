@@ -3,6 +3,9 @@ import time
 import logging
 import pickle
 
+from graphgym.contrib.transform.normalize import normalize_stateful
+from sklearn.preprocessing import MinMaxScaler
+
 from deepsnap.dataset import GraphDataset
 import torch
 from torch.utils.data import DataLoader
@@ -173,6 +176,9 @@ def transform_after_split(datasets):
     :return: A list of transformed DeepSNAP dataset objects
     '''
     if cfg.dataset.transform == 'ego':
+        # seemingly computes ego graphs, but then each `dataset` here
+        # is still one big graph object, probably containing all the little ego graphs
+        # as disconnected subgraphs
         for split_dataset in datasets:
             split_dataset.apply_transform(ego_nets,
                                           radius=cfg.gnn.layers_mp,
@@ -186,6 +192,18 @@ def transform_after_split(datasets):
                                           update_graph=False)
             split_dataset.task = 'node'
         cfg.dataset.task = 'node'
+    # apply normalisation to dataset.
+    if cfg.dataset.transform == 'normalize':
+        # TODO assert that this is only used for a single dataset (but re-used for splits)
+        scaler = MinMaxScaler()
+        train = datasets[0]
+        scaler.fit(train.graphs[0].node_feature)  # this will initialise the scaler using the train split
+        for dataset in datasets:
+            # apply scaler based on statistics from train split
+            assert len(dataset.graphs) == 1  # when do we have more than 1 graph in here?
+            label_index = dataset.graphs[0].node_label_index  # subset of nodes corresponding to this split (node indices)
+            dataset.apply_transform(normalize_stateful, update_graph=True, update_tensor=False,
+                                    scaler=scaler, label_index=label_index)
     return datasets
 
 
