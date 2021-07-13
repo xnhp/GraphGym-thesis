@@ -58,6 +58,8 @@ def graph_from_model(model: SBMLModel) -> nx.Graph:
                                          # but are referenced in a reaction in model.reactions
                 G.add_edge(rxn['id'], neighbour_id)  # disregard direction for now
 
+    G.remove_nodes_from([node for (node, degree) in G.degree(G.nodes) if degree < SBMLModel.min_node_degree  ])
+
     return G
 
 
