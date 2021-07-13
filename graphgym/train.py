@@ -58,6 +58,9 @@ def train(loggers, loaders, model, optimizer, scheduler):
     for cur_epoch in range(start_epoch, cfg.optim.max_epoch):
         train_epoch(loggers[0], loaders[0], model, optimizer, scheduler)
         loggers[0].write_epoch(cur_epoch)
+        # at each k-th epoch, evaluate the model on the remaining splits
+        # this is a bit weird and would only make sense in the case of having exactly two splits
+        # also cannot find any example that uses more than two splits
         if is_eval_epoch(cur_epoch):
             for i in range(1, num_splits):
                 eval_epoch(loggers[i], loaders[i], model)
