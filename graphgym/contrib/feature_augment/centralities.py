@@ -26,7 +26,7 @@ register_feature_augment('node_closeness_centrality', closeness_centr_func)
 def eigenvector_centr_func(graph, **kwargs):
     t = TicToc()
     t.tic()
-    r =  list(nx.algorithms.centrality.eigenvector_centrality(graph.G).values())
+    r =  list(nx.algorithms.centrality.eigenvector_centrality(graph.G, max_iter=300).values())
     t.toc("Whole-graph eigenvector centrality")
     return r
 register_feature_augment('node_eigenvector_centrality', eigenvector_centr_func)
