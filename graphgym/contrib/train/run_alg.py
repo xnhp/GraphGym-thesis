@@ -5,6 +5,7 @@ from graphgym.register import register_train
 # e.g. baseline classifier such as SVM
 from sklearn import svm
 
+
 def collect_feature_augment(batch):
     # collect information from feature augments to node_feature tensor
     # these lines are based on `Preprocess` in feature_augment.py
@@ -14,6 +15,7 @@ def collect_feature_augment(batch):
     return torch.cat(
         [batch[name].float() for name in dim_dict],
         dim=1)
+
 
 def run_alg(loggers, loaders, model, optimizer, scheduler):
     global comms
@@ -39,7 +41,15 @@ def run_alg(loggers, loaders, model, optimizer, scheduler):
     Y_test = batch_test.node_label
 
     # train SVM model
-    rbf_svc = svm.SVC(kernel='rbf')
+    rbf_svc = svm.SVC(
+        kernel=cfg.model.svm_kernel,
+        class_weight={
+            label: weight
+            for label, weight in enumerate(cfg.model.class_weights)
+        },
+        gamma=cfg.model.svm_gamma,
+        C=cfg.model.svm_cost
+    )
     # evaluate on train split
     rbf_svc.fit(X_train, Y_train)
     pred_train = rbf_svc.predict(X_train)
