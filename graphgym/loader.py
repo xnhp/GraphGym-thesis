@@ -3,7 +3,7 @@ import time
 import logging
 import pickle
 
-from graphgym.contrib.transform.normalize import normalize_stateful
+from graphgym.contrib.transform.normalize import normalize_stateful, fit_normalizers
 from sklearn.preprocessing import MinMaxScaler
 
 from deepsnap.dataset import GraphDataset
@@ -195,15 +195,17 @@ def transform_after_split(datasets):
     # apply normalisation to dataset.
     if cfg.dataset.transform == 'normalize':
         # TODO assert that this is only used for a single dataset (but re-used for splits)
-        scaler = MinMaxScaler()
         train = datasets[0]
-        scaler.fit(train.graphs[0].node_feature)  # this will initialise the scaler using the train split
+        scalers : dict
+        # initialise the scaler(s) using train split
+        scalers = fit_normalizers(train)
+        # datasets contain the same graph, only node_label_index is different
         for dataset in datasets:
             # apply scaler based on statistics from train split
             assert len(dataset.graphs) == 1  # when do we have more than 1 graph in here?
             label_index = dataset.graphs[0].node_label_index  # subset of nodes corresponding to this split (node indices)
             dataset.apply_transform(normalize_stateful, update_graph=True, update_tensor=False,
-                                    scaler=scaler, label_index=label_index)
+                                    scalers=scalers)
     return datasets
 
 
