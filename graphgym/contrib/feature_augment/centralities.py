@@ -1,10 +1,7 @@
-import statistics
-
 import networkx as nx
-import networkx.generators.ego
 
 from graphgym.register import register_feature_augment
-from graphgym.contrib.feature_augment.util import bfs_accumulate
+from graphgym.contrib.feature_augment.util import bfs_accumulate, compute_stats
 
 from pytictoc import TicToc
 
@@ -127,8 +124,6 @@ def neighbour_centrality_statistics_func(graph, **kwargs):
     # then, for each neighbourhood, fetch and aggregate according centrs
     for node in nxG.nodes:
         neighbs = nxG.neighbors(node)
-        def compute_stats(l):
-            return [statistics.mean(l), min(l), max(l), statistics.stdev(l)]
         feats.append([
             compute_stats([betweenness[neighb] for neighb in neighbs]),
             compute_stats([degree[neighb] for neighb in neighbs]),

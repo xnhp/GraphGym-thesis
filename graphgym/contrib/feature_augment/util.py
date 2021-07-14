@@ -1,3 +1,5 @@
+import statistics
+
 
 def bfs_accumulate(g, source, max_distance, accumulator, acc):
     """
@@ -36,3 +38,7 @@ def bfs_accumulate(g, source, max_distance, accumulator, acc):
             accumulator(visited, next_vertices, encountered_in_step, i, acc)
 
     return acc
+
+
+def compute_stats(l):
+    return [statistics.mean(l), min(l), max(l), statistics.stdev(l)]
