@@ -18,6 +18,8 @@ def normalize_stateful(graph, scalers=None):
     assert label_index is not None
 
     # assume scalers are properly established
+    if cfg.dataset.normalize_feats is None:  # i.e. empty
+        return
     assert len(cfg.dataset.normalize_feats) == len(scalers.keys())
     for key, scaler in scalers.items():
         # apply previously initialised scaler
@@ -32,6 +34,8 @@ def normalize_stateful(graph, scalers=None):
 def fit_normalizers(dataset) -> dict:
     # return a fitted scaler for each key
     graph = dataset.graphs[0]
+    if cfg.dataset.normalize_feats is None:
+        return {}  # happens if yaml list in config file is empty
     return {
         feat_key: create_fit_scaler(graph[feat_key])
         for feat_key in cfg.dataset.normalize_feats
