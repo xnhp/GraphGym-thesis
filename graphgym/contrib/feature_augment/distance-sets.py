@@ -23,13 +23,17 @@ def distance_set_sz_func(graph, **kwargs):
 
     t = TicToc()
     t.tic()
+    # actual feature values
     abs_sz = [bfs_accumulate(graph.G, node, 5, acc_nodes_at_dist, []) for node in graph.G.nodes]
     # each element is a list of distance set sizes for resp. distance 1-5
-    norms = [4, 8, 12, 16, 20]   # cf nielsen
+    norms = [4, 8, 12, 16, 20]   # ↝ nielsen
 
-    feats = [[sz / norm for sz, norm in zip(sizes, norms)] for sizes in abs_sz]
-    # stats across different sizes
-    feats = [feat + compute_stats(feat) for feat in feats]
+    feats = [
+        # additionally compute statistics
+        feat + compute_stats(feat) for feat in
+                # normalised feature values across different sizes
+                [[sz / norm for sz, norm in zip(sizes, norms)] for sizes in abs_sz]
+            ]
 
     t.toc("distance set sizes")
     return feats

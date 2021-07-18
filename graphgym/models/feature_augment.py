@@ -1,16 +1,18 @@
 import logging
+
+import graphgym.register as register
 import networkx as nx
 import numpy as np
 import torch
 import torch.nn as nn
+from graphgym.config import cfg
+from graphgym.contrib.feature_augment.util import bipartite_projection_wrap
+from graphgym.contrib.transform.identity import compute_identity
 
 from deepsnap.graph import Graph
 
-from graphgym.config import cfg
-from graphgym.contrib.transform.identity import compute_identity
-
+# this import needs to be present although IDEs may want to remove it.
 from graphgym.contrib.feature_augment import *
-import graphgym.register as register
 
 
 def _key(key, as_label=False):
@@ -106,6 +108,7 @@ class FeatureAugment(nn.Module):
             clustering = nx.average_clustering(graph.G)
             return torch.tensor([clustering])
 
+        # feature augments that are part of GG core
         self.feature_dict = {
             'node_degree': degree_fun,
             'node_betweenness_centrality': centrality_fun,
@@ -121,8 +124,25 @@ class FeatureAugment(nn.Module):
             'graph_clustering_coefficient': graph_clustering_fun
         }
 
+        # add feature augments from registry
         self.feature_dict = {**register.feature_augment_dict,
                              **self.feature_dict}
+
+        # features for which it makes sense to consider the bipartite projection / clique reduction
+        bip_proj_feats = [
+            'node_closeness_centrality',
+            'node_betweenness_centrality',
+            'node_degree',
+            'node_eigenvector_centrality',
+            'node_ego_centralities',
+            'node_neighbour_centrality_statistics',
+            'node_distance_set_size'
+        ]
+        # register wraps of these as well
+        # self.feature_dict.update({
+        #         proj_feat + "_projection" : bipartite_projection_wrap(register.feature_augment_dict[proj_feat])
+        #         for proj_feat in bip_proj_feats
+        # })
 
         for key, fun in self.feature_dict.items():
             self.feature_dict[key] = create_augment_fun(

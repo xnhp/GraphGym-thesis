@@ -1,5 +1,9 @@
 import statistics
 
+import networkx
+
+import deepsnap
+
 
 def bfs_accumulate(g, source, max_distance, accumulator, acc):
     """
@@ -34,7 +38,7 @@ def bfs_accumulate(g, source, max_distance, accumulator, acc):
         encountered_in_step = set()
         next_vertices = set()
         # call consumer once for each remaining step until max_distance
-        for i in range(current_distance+1, max_distance+1):
+        for i in range(current_distance + 1, max_distance + 1):
             accumulator(visited, next_vertices, encountered_in_step, i, acc)
 
     return acc
@@ -42,3 +46,33 @@ def bfs_accumulate(g, source, max_distance, accumulator, acc):
 
 def compute_stats(l):
     return [statistics.mean(l), min(l), max(l), statistics.stdev(l)]
+
+
+def bipartite_projection_wrap(augment_func):
+    # the actual feature augment that is called
+    def wrap(graph, **kwargs):
+        return augment_func(get_bip_proj_cached(graph), **kwargs)
+
+    return wrap
+
+
+def get_non_rxn_nodes(graph : networkx.Graph):
+    """
+    :param graph:
+    :return: list of node indices
+    ↝ SBMLModel#reactions
+    """
+    return [node for (node, nodeclass) in graph.nodes(data='class') if nodeclass != 'reaction']
+
+
+def get_bip_proj_cached(graph):
+    if graph['bipartite_projection'] is None:
+        from networkx.algorithms import bipartite
+        bipartite_projection = bipartite.projected_graph(graph.G, get_non_rxn_nodes(graph.G))  # connected if common neighbour in rxn_nodes
+        dsG = deepsnap.graph.Graph(bipartite_projection,
+                                   # avoid updating internal tensor repr
+                                   edge_label_index=[],
+                                   node_label_index=[]
+                                   )
+        graph['bipartite_projection'] = dsG
+    return graph['bipartite_projection']

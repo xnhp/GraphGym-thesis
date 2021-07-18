@@ -106,7 +106,6 @@ register_feature_augment('node_ego_centralities', ego_centrality_func)
 def neighbour_centrality_statistics_func(graph, **kwargs):
     """
     Statistics (mean, max, min, stddev) of centralities of neighbour nodes, for each node.
-    # TODO also do this for distance sets
     """
     nxG = graph.G
     t = TicToc()
