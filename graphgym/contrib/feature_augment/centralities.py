@@ -122,13 +122,12 @@ def neighbour_centrality_statistics_func(graph, **kwargs):
     t.toc("eigenvector centrality (whole graph)", restart=True)
     # then, for each neighbourhood, fetch and aggregate according centrs
     for node in nxG.nodes:
-        neighbs = nxG.neighbors(node)
-        feats.append([
-            compute_stats([betweenness[neighb] for neighb in neighbs]),
-            compute_stats([degree[neighb] for neighb in neighbs]),
-            compute_stats([closeness[neighb] for neighb in neighbs]),
-            compute_stats([eigenvector[neighb] for neighb in neighbs])
-        ])
+        neighbs = list(nxG.neighbors(node))
+        b = compute_stats([betweenness[neighb] for neighb in neighbs])
+        d = compute_stats([degree[neighb] for neighb in neighbs])
+        c = compute_stats([closeness[neighb] for neighb in neighbs])
+        e = compute_stats([eigenvector[neighb] for neighb in neighbs])
+        feats.append(b + c + d + e)
     assert len(feats) == len(nxG.nodes)
     t.toc("Computed neighbour centrality statistics")
     return feats
