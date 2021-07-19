@@ -45,7 +45,18 @@ def bfs_accumulate(g, source, max_distance, accumulator, acc):
 
 
 def compute_stats(l):
-    return [statistics.mean(l), min(l), max(l), statistics.stdev(l)]
+    assert len(l) > 0  # isolated node
+    if len(l) < 2:
+        mean = l[0]
+        minv = l[0]
+        maxv = l[0]
+        stddev = 0
+    else:
+        mean = statistics.mean(l)
+        minv = min(l)
+        maxv = max(l)
+        stddev = statistics.stdev(l)
+    return list([mean, minv, maxv, stddev])
 
 
 def bipartite_projection_wrap(augment_func):

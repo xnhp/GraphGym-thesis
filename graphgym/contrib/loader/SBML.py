@@ -58,7 +58,14 @@ def graph_from_model(model: SBMLModel) -> nx.Graph:
                                          # but are referenced in a reaction in model.reactions
                 G.add_edge(rxn['id'], neighbour_id)  # disregard direction for now
 
-    G.remove_nodes_from([node for (node, degree) in G.degree(G.nodes) if degree < SBMLModel.min_node_degree  ])
+    low_deg_nodes = [node for (node, degree) in G.degree if degree < SBMLModel.min_node_degree]
+    G.remove_nodes_from(low_deg_nodes)
+    # note that this does not necessarily mean that after this G will contain no nodes of low degree
+    # we have to accept this...
+    # ... but we need to remove isolated nodes because we cannot compute neighbourhood statistics for them
+    #     and in any case duplicating isolated nodes seems out of scope
+    no_deg_nodes = [node for (node, degree) in G.degree if degree == 0]
+    G.remove_nodes_from(no_deg_nodes)
 
     return G
 
