@@ -5,11 +5,6 @@ from graphgym.contrib.feature_augment.util import bfs_accumulate, compute_stats
 
 from pytictoc import TicToc
 
-# betweenness already part of core
-
-
-# degree already part of core
-
 
 def closeness_centr_func(graph, **kwargs):
     t = TicToc()
@@ -17,15 +12,19 @@ def closeness_centr_func(graph, **kwargs):
     r = list(nx.algorithms.centrality.closeness_centrality(graph.G).values())
     t.toc("Whole-graph closeness centralities")
     return r
+
+
 register_feature_augment('node_closeness_centrality', closeness_centr_func)
 
 
 def eigenvector_centr_func(graph, **kwargs):
     t = TicToc()
     t.tic()
-    r =  list(nx.algorithms.centrality.eigenvector_centrality(graph.G, max_iter=300).values())
+    r = list(nx.algorithms.centrality.eigenvector_centrality(graph.G, max_iter=300).values())
     t.toc("Whole-graph eigenvector centrality")
     return r
+
+
 register_feature_augment('node_eigenvector_centrality', eigenvector_centr_func)
 
 
@@ -43,7 +42,7 @@ def ego_graphs_incr(g, source, radii):
         # encountered: nodes encountered at this step
         # newly_discovered: nodes that havent been encountered before
         # seen: accumulator value, used to acc all nodes seen so far
-        if at_distance in radii: # this is dirty but fine assuming that at_distance increases with each call
+        if at_distance in radii:  # this is dirty but fine assuming that at_distance increases with each call
             acc.append(visited)
         return acc
 
@@ -65,7 +64,7 @@ def ego_centrality_func(graph, **kwargs):
     timer_whole.tic()
     feats = []
     nxG = graph.G
-    radii = [3,5]
+    radii = [3, 5]
     for node in nxG.nodes:
         # t = TicToc()
         # t.tic()
@@ -100,6 +99,7 @@ def ego_centrality_func(graph, **kwargs):
     timer_whole.toc("Computed ego centralities (whole feature augment call)")
     return feats
 
+
 register_feature_augment('node_ego_centralities', ego_centrality_func)
 
 
@@ -131,5 +131,6 @@ def neighbour_centrality_statistics_func(graph, **kwargs):
     assert len(feats) == len(nxG.nodes)
     t.toc("Computed neighbour centrality statistics")
     return feats
+
 
 register_feature_augment('node_neighbour_centrality_statistics', neighbour_centrality_statistics_func)
