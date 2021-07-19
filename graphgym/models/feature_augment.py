@@ -130,19 +130,21 @@ class FeatureAugment(nn.Module):
 
         # features for which it makes sense to consider the bipartite projection / clique reduction
         bip_proj_feats = [
-            'node_closeness_centrality',
+            # from core
             'node_betweenness_centrality',
             'node_degree',
+            # from extensions
+            'node_closeness_centrality',
             'node_eigenvector_centrality',
             'node_ego_centralities',
             'node_neighbour_centrality_statistics',
             'node_distance_set_size'
         ]
         # register wraps of these as well
-        # self.feature_dict.update({
-        #         proj_feat + "_projection" : bipartite_projection_wrap(register.feature_augment_dict[proj_feat])
-        #         for proj_feat in bip_proj_feats
-        # })
+        self.feature_dict.update({
+                proj_feat + "_projection" : bipartite_projection_wrap(self.feature_dict[proj_feat])
+                for proj_feat in bip_proj_feats
+        })
 
         for key, fun in self.feature_dict.items():
             self.feature_dict[key] = create_augment_fun(
