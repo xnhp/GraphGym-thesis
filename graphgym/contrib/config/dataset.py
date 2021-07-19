@@ -16,4 +16,7 @@ def set_cfg_dataset(cfg):
     cfg.dataset.normalize_feats = []
 
 
+    cfg.dataset.feat_cache = True
+
+
 register_config('dataset_config', set_cfg_dataset)

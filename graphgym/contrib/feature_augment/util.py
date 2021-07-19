@@ -1,8 +1,51 @@
 import statistics
 
 import networkx
+import torch
 
 import deepsnap
+import os
+from graphgym.config import cfg
+
+
+def check_cache(key):
+    cwd = os.getcwd()
+    targetpath = os.path.join(cwd, 'feature-augment-cache', cfg.dataset.name + '_' + key + '.pt')
+    if os.path.isfile(targetpath):
+        print("loading from cache: ", key)
+        return torch.tensor(torch.load(targetpath)).to(torch.float32)
+    else:
+        return None
+
+
+def put_cache(data, key):
+    cwd = os.getcwd()
+    print("putting into cache: ", key)
+    targetpath = os.path.join(cwd, 'feature-augment-cache', cfg.dataset.name + '_' + key + '.pt')
+    torch.save(data, targetpath)
+
+def cache_wrap(key, augment_func):
+    """
+    Note that this simply caches the result of the feature augment call.
+    If the train/test split is different this will return incorrect results
+    :param key:
+    :param augment_func:
+    :return:
+    """
+
+    def wrapped(graph, **kwargs):
+        if cfg.dataset.feat_cache:
+            cached = check_cache(key)
+            if cached is not None:
+                return cached
+            # the actual feature augment that is called
+            r = augment_func(graph, **kwargs)
+            put_cache(r, key)
+            return r
+        else:
+            print('cache disabled')
+            return augment_func(graph, **kwargs)
+    return wrapped
 
 
 def bfs_accumulate(g, source, max_distance, accumulator, acc):
@@ -45,8 +88,12 @@ def bfs_accumulate(g, source, max_distance, accumulator, acc):
 
 
 def compute_stats(l):
-    assert len(l) > 0  # isolated node
-    if len(l) < 2:
+    if len(l) == 0:
+        mean = 0
+        minv = 0
+        maxv = 0
+        stddev = 0
+    elif len(l) < 2:
         mean = l[0]
         minv = l[0]
         maxv = l[0]
@@ -61,13 +108,13 @@ def compute_stats(l):
 
 def bipartite_projection_wrap(augment_func):
     # the actual feature augment that is called
-    def wrap(graph, **kwargs):
+    def wrapped(graph, **kwargs):
         return augment_func(get_bip_proj_cached(graph), **kwargs)
 
-    return wrap
+    return wrapped
 
 
-def get_non_rxn_nodes(graph : networkx.Graph):
+def get_non_rxn_nodes(graph: networkx.Graph):
     """
     :param graph:
     :return: list of node indices
@@ -79,7 +126,14 @@ def get_non_rxn_nodes(graph : networkx.Graph):
 def get_bip_proj_cached(graph):
     if graph['bipartite_projection'] is None:
         from networkx.algorithms import bipartite
-        bipartite_projection = bipartite.projected_graph(graph.G, get_non_rxn_nodes(graph.G))  # connected if common neighbour in rxn_nodes
+        non_rxn_nodes = get_non_rxn_nodes(graph.G)
+        assert min([deg for (node, deg) in graph.G.degree]) > 0
+        assert bipartite.is_bipartite_node_set(graph.G, non_rxn_nodes)
+        bipartite_projection = bipartite.projected_graph(graph.G,
+                                                         non_rxn_nodes)  # connected if common neighbour in rxn_nodes
+        # should not contain isolated nodes if original graph didnt... but occurs anyways?
+        # no_deg_nodes = [node for (node, degree) in bipartite_projection.degree if degree == 0]
+        # bipartite_projection.remove_nodes_from(no_deg_nodes)
         dsG = deepsnap.graph.Graph(bipartite_projection,
                                    # avoid updating internal tensor repr
                                    edge_label_index=[],

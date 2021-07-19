@@ -6,7 +6,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from graphgym.config import cfg
-from graphgym.contrib.feature_augment.util import bipartite_projection_wrap
+from graphgym.contrib.feature_augment.util import bipartite_projection_wrap, cache_wrap
 from graphgym.contrib.transform.identity import compute_identity
 
 from deepsnap.graph import Graph
@@ -144,6 +144,12 @@ class FeatureAugment(nn.Module):
         self.feature_dict.update({
                 proj_feat + "_projection" : bipartite_projection_wrap(self.feature_dict[proj_feat])
                 for proj_feat in bip_proj_feats
+        })
+
+        # wrap all feature augments in a cache check
+        self.feature_dict.update({
+            key: cache_wrap(key, func)
+            for key, func in self.feature_dict.items()
         })
 
         for key, fun in self.feature_dict.items():
