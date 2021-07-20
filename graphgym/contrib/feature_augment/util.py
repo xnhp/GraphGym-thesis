@@ -35,7 +35,7 @@ def cache_wrap(key, augment_func):
     """
 
     def wrapped(graph, **kwargs):
-        if cfg.dataset.feat_cache == 'use_and_update':
+        if cfg.dataset.feat_cache == 'use_and_update' or cfg.dataset.feat_cache == 'enabled':
             cached = check_cache(key)
             if cached is not None:
                 return cached
