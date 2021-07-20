@@ -1,3 +1,6 @@
+import os
+
+import pandas as pd
 import torch
 from graphgym.config import cfg
 from graphgym.contrib.feature_augment.util import get_non_rxn_nodes, tens_intersect, collect_feature_augment
@@ -70,29 +73,47 @@ def run_svm(loggers, loaders, model, optimizer, scheduler):
 
     # train ("fit") SVM model
     rbf_svc = svm.SVC(
+        probability=True,
         kernel=cfg.model.svm_kernel,
-        class_weight={
-            label: weight
-            for label, weight in enumerate(cfg.model.class_weights)
-        },
+        class_weight='balanced',
+        # class_weight={
+        #     label: weight
+        #     for label, weight in enumerate(cfg.model.class_weights)
+        # },
         gamma=cfg.model.svm_gamma,
         C=cfg.model.svm_cost
     )
     rbf_svc.fit(X_train, Y_train)
 
     # evaluate on train split
-    pred_train = rbf_svc.predict(X_train)
+    pred_train = rbf_svc.predict_proba(X_train)  # will output probability scores!
+    # class prediction obtained via cfg.model.thresh (default 0.5)
     pred_train = torch.from_numpy(pred_train).to(torch.float)
     logger_train = loggers[0]
-    logger_train.update_stats(true=Y_train, pred=pred_train, loss=0, lr=0, time_used=t.tocvalue(), params=1)
+    logger_train.update_stats(true=Y_train, pred=pred_train[:, 1], loss=0, lr=0, time_used=t.tocvalue(), params=1)
     logger_train.write_epoch(0)
 
+    # write model prediction. Doing so here is simpler than saving/loading the model as we would do
+    #   with the checkpointing facility and pytorch models.
+    # in case of pytorch modules we can load the checkpoint as we did in project?
+    def save_labels(tens: torch.Tensor, filename, out_dir):
+        df = pd.DataFrame(tens.numpy())
+        df.to_csv(os.path.join(out_dir, filename + ".csv"))
+        # previous approach:
+        # torch.save(Y_train, os.path.join(logger_train.out_dir, 'Y_train.pt'))
+
+    # output only probabilities of "larger" class, 1d expected downstream
+    save_labels(Y_train, 'Y_train', logger_train.out_dir)
+    save_labels(pred_train[:,1], 'pred_train', logger_train.out_dir)
+
     # evaluate on test split
-    pred_test = rbf_svc.predict(X_test)
+    pred_test = rbf_svc.predict_proba(X_test)
     pred_test = torch.from_numpy(pred_test).to(torch.float)
     logger_test = loggers[1]
-    logger_test.update_stats(true=Y_test, pred=pred_test, loss=0, lr=0, time_used=t.tocvalue(), params=1)
+    logger_test.update_stats(true=Y_test, pred=pred_test[:, 1], loss=0, lr=0, time_used=t.tocvalue(), params=1)
     logger_test.write_epoch(0)
+    save_labels(Y_test, 'Y_test', logger_test.out_dir)
+    save_labels(pred_test[:,1], 'pred_test', logger_test.out_dir)
 
     for logger in loggers:
         logger.close()
