@@ -31,6 +31,7 @@ def logical_and_pad(a, b):
 def run_svm(loggers, loaders, model, optimizer, scheduler):
     from pytictoc import TicToc
     t = TicToc()
+    t.tic()
 
     # we abuse the batch / dataloader abstractions and not make
     # no use of them at all. instead, we only use them to access
