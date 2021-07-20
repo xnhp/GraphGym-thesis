@@ -5,3 +5,5 @@ run/datasets/data/
 .idea/
 /run/datasets/
 /run/results/
+/run/svm-repro/generated-configs/
+/run/svm-repro/results/config/
