@@ -16,7 +16,12 @@ def set_cfg_dataset(cfg):
     cfg.dataset.normalize_feats = []
 
 
-    cfg.dataset.feat_cache = True
+    # Whether to save/load feature augment data to/from disk or recompute.
+    # expected values:
+    # - 'use_and_update': use data from cache if available; update cache if recomputed
+    # - 'update_always' : always recompute and put into cache
+    # - 'disabled'      : always recompute, do not touch cache at all
+    cfg.dataset.feat_cache = 'use_and_update'
 
 
 register_config('dataset_config', set_cfg_dataset)

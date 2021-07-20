@@ -35,7 +35,7 @@ def cache_wrap(key, augment_func):
     """
 
     def wrapped(graph, **kwargs):
-        if cfg.dataset.feat_cache:
+        if cfg.dataset.feat_cache == 'use_and_update':
             cached = check_cache(key)
             if cached is not None:
                 return cached
@@ -43,8 +43,11 @@ def cache_wrap(key, augment_func):
             r = augment_func(graph, **kwargs)
             put_cache(r, key)
             return r
-        else:
-            print('cache disabled')
+        if cfg.dataset.feat_cache == 'update_always':
+            r = augment_func(graph, **kwargs)
+            put_cache(r, key)
+            return r
+        if cfg.dataset.feat_cache == 'disabled':
             return augment_func(graph, **kwargs)
     return wrapped
 
@@ -140,8 +143,8 @@ def get_bip_proj_cached(graph):
 
         # selected nodes in original graph
         # i.e. ids of nodes that we want to consider in this split
-        node_ids, node_idx, _ = tens_intersect(graph['node_label_index'], torch.tensor(non_rxn_nodes))
-        dsG['node_label_index'] = node_idx
+        node_ids, a_idx, b_idx = tens_intersect(graph['node_label_index'], torch.tensor(non_rxn_nodes))
+        dsG['node_label_index'] = b_idx
         graph['bipartite_projection'] = dsG
     return graph['bipartite_projection']
 
