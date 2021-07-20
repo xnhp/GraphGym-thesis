@@ -1,6 +1,7 @@
 # scaler supplied via kwargs
 import torch
 from graphgym.config import cfg
+from graphgym.contrib.feature_augment.util import get_bip_proj_cached
 from sklearn.preprocessing import MinMaxScaler
 
 
@@ -30,12 +31,14 @@ def normalize_stateful(graph, scalers=None):
         if key.endswith('_projection'):
             # label_index corresponds to the entire graph (not bipartite projection)
             #   this is a problem if feature (in graph_key) are of smaller shape (if computed on bipartite projection)
+            get_bip_proj_cached(graph)  # compute bip projection if not present
             label_index = graph['bipartite_projection']['node_label_index']
         else:
             label_index = graph.node_label_index
         original = graph[key][label_index]
         transformed = scaler.transform(original)
-        graph[key][label_index] = torch.from_numpy(transformed).to(torch.float32)
+        target_dtype = graph[key][label_index].dtype
+        graph[key][label_index] = torch.from_numpy(transformed).to(target_dtype)
 
 
 def fit_normalizers(dataset) -> dict:
