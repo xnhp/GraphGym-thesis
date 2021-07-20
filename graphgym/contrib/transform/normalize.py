@@ -25,10 +25,17 @@ def normalize_stateful(graph, scalers=None):
         # apply previously initialised scaler
         # only consider features in current split, i.e. those indicated by label_index
         # note that technically the entire tensor of size n is present but we only
-        # touch those corresponding to the current split
+        # touch those corresponding to the current split.
+
+        if key.endswith('_projection'):
+            # label_index corresponds to the entire graph (not bipartite projection)
+            #   this is a problem if feature (in graph_key) are of smaller shape (if computed on bipartite projection)
+            label_index = graph['bipartite_projection']['node_label_index']
+        else:
+            label_index = graph.node_label_index
         original = graph[key][label_index]
         transformed = scaler.transform(original)
-        graph[key][label_index] = torch.from_numpy(transformed).to(torch.float)
+        graph[key][label_index] = torch.from_numpy(transformed).to(torch.float32)
 
 
 def fit_normalizers(dataset) -> dict:

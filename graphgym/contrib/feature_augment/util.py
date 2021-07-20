@@ -1,6 +1,7 @@
 import statistics
 
 import networkx
+import numpy as np
 import torch
 
 import deepsnap
@@ -131,13 +132,36 @@ def get_bip_proj_cached(graph):
         assert bipartite.is_bipartite_node_set(graph.G, non_rxn_nodes)
         bipartite_projection = bipartite.projected_graph(graph.G,
                                                          non_rxn_nodes)  # connected if common neighbour in rxn_nodes
-        # should not contain isolated nodes if original graph didnt... but occurs anyways?
-        # no_deg_nodes = [node for (node, degree) in bipartite_projection.degree if degree == 0]
-        # bipartite_projection.remove_nodes_from(no_deg_nodes)
         dsG = deepsnap.graph.Graph(bipartite_projection,
                                    # avoid updating internal tensor repr
                                    edge_label_index=[],
                                    node_label_index=[]
                                    )
+
+        # selected nodes in original graph
+        # i.e. ids of nodes that we want to consider in this split
+        node_ids, node_idx, _ = tens_intersect(graph['node_label_index'], torch.tensor(non_rxn_nodes))
+        dsG['node_label_index'] = node_idx
         graph['bipartite_projection'] = dsG
     return graph['bipartite_projection']
+
+
+def tens_intersect(x: torch.Tensor, y: torch.Tensor):
+    intersect, x_ind, y_ind = np.intersect1d(x.cpu().numpy(), y.cpu().numpy(), return_indices=True)
+    return torch.tensor(intersect), torch.tensor(x_ind), torch.tensor(y_ind)
+
+
+def collect_feature_augment(batch, node_index):
+    """
+    Concat information from feature augments into node_feature tensor. Same as `Processing` module does in GNN models.
+    Additionally takes a node_index mask of nodes to consider.
+    :param batch:
+    :param node_index:
+    :return:
+    """
+    dim_dict = {name: dim
+                for name, dim in zip(cfg.dataset.augment_feature,
+                                     cfg.dataset.augment_feature_dims)}
+    return torch.cat(
+        [batch[name][node_index].float() for name in dim_dict],
+        dim=1)

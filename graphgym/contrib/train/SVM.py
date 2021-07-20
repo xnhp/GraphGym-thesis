@@ -1,27 +1,10 @@
-import numpy as np
 import torch
 from graphgym.config import cfg
-from graphgym.contrib.feature_augment.util import get_non_rxn_nodes
+from graphgym.contrib.feature_augment.util import get_non_rxn_nodes, tens_intersect, collect_feature_augment
 from graphgym.register import register_train
 # Do not train a neural network but invoke some other algorithm
 # e.g. baseline classifier such as SVM
 from sklearn import svm
-
-
-def collect_feature_augment(batch, node_index):
-    """
-    Concat information from feature augments into node_feature tensor. Same as `Processing` module does in GNN models.
-    Additionally takes a node_index mask of nodes to consider.
-    :param batch:
-    :param node_index:
-    :return:
-    """
-    dim_dict = {name: dim
-                for name, dim in zip(cfg.dataset.augment_feature,
-                                     cfg.dataset.augment_feature_dims)}
-    return torch.cat(
-        [batch[name][node_index].float() for name in dim_dict],
-        dim=1)
 
 
 def logical_and_pad(a, b):
@@ -43,11 +26,6 @@ def logical_and_pad(a, b):
     padding = torch.zeros(diff)
     padded = torch.cat([smaller, padding], dim=0)
     return torch.logical_and(greater, padded)
-
-
-def tens_intersect(x: torch.Tensor, y: torch.Tensor):
-    intersect, x_ind, y_ind = np.intersect1d(x.cpu().numpy(), y.cpu().numpy(), return_indices=True)
-    return torch.tensor(intersect), torch.tensor(x_ind), torch.tensor(y_ind)
 
 
 def run_svm(loggers, loaders, model, optimizer, scheduler):
@@ -80,6 +58,8 @@ def run_svm(loggers, loaders, model, optimizer, scheduler):
     # When selecting non-rxn nodes from node_label_index we need to do the same
     #   for node_label. We remember the indices we picked from node_label_index
     #   and use these to index into node_label.
+    # TODO instead, use graph['bipartite_projection']['node_label_index'] here
+    #   as computed in get_bip_proj_cached?
     train_label_index, picked_test, _ = tens_intersect(batch_train.node_label_index, non_rxn_index)
     test_label_index, picked_train, _ = tens_intersect(batch_test.node_label_index, non_rxn_index)
     X_train = X_augm[train_label_index]  # this is essentially our feature matrix
