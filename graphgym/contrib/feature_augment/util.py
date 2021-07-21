@@ -3,27 +3,29 @@ import statistics
 import networkx
 import numpy as np
 import torch
+from pytictoc import TicToc
 
 import deepsnap
 import os
 from graphgym.config import cfg
 
 
-def check_cache(key):
+def check_cache(key, graph_name):
     cwd = os.getcwd()
-    targetpath = os.path.join(cwd, 'feature-augment-cache', cfg.dataset.name + '_' + key + '.pt')
+    targetpath = os.path.join(cwd, 'feature-augment-cache', graph_name + '_' + key + '.pt')
     if os.path.isfile(targetpath):
-        print("loading from cache: ", key)
+        print("loaded from cache: " + graph_name + "/" + key)
         return torch.tensor(torch.load(targetpath)).to(torch.float32)
     else:
         return None
 
 
-def put_cache(data, key):
+def put_cache(data, key, graph_name):
     cwd = os.getcwd()
-    print("putting into cache: ", key)
-    targetpath = os.path.join(cwd, 'feature-augment-cache', cfg.dataset.name + '_' + key + '.pt')
+    print("put into cache: " + graph_name + "/" + key)
+    targetpath = os.path.join(cwd, 'feature-augment-cache', graph_name + '_' + key + '.pt')
     torch.save(data, targetpath)
+
 
 def cache_wrap(key, augment_func):
     """
@@ -36,16 +38,16 @@ def cache_wrap(key, augment_func):
 
     def wrapped(graph, **kwargs):
         if cfg.dataset.feat_cache == 'use_and_update' or cfg.dataset.feat_cache == 'enabled':
-            cached = check_cache(key)
+            cached = check_cache(key, graph['name'])
             if cached is not None:
                 return cached
             # the actual feature augment that is called
             r = augment_func(graph, **kwargs)
-            put_cache(r, key)
+            put_cache(r, key, graph['name'])
             return r
-        if cfg.dataset.feat_cache == 'update_always':
+        if cfg.dataset.feat_cache == 'update_always' or cfg.dataset.feat_cache == 'update':
             r = augment_func(graph, **kwargs)
-            put_cache(r, key)
+            put_cache(r, key, graph['name'])
             return r
         if cfg.dataset.feat_cache == 'disabled':
             return augment_func(graph, **kwargs)
@@ -129,6 +131,8 @@ def get_non_rxn_nodes(graph: networkx.Graph):
 
 def get_bip_proj_cached(graph):
     if graph['bipartite_projection'] is None:
+        t = TicToc()
+        t.tic()
         from networkx.algorithms import bipartite
         non_rxn_nodes = get_non_rxn_nodes(graph.G)
         assert min([deg for (node, deg) in graph.G.degree]) > 0
@@ -146,6 +150,7 @@ def get_bip_proj_cached(graph):
         node_ids, a_idx, b_idx = tens_intersect(graph['node_label_index'], torch.tensor(non_rxn_nodes))
         dsG['node_label_index'] = b_idx
         graph['bipartite_projection'] = dsG
+        t.toc("computed bipartite projection of " + graph['name'])
     return graph['bipartite_projection']
 
 
