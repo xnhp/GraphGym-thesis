@@ -125,12 +125,11 @@ class FeatureAugment(nn.Module):
         }
 
         # add feature augments from registry
-        self.feature_dict = {**register.feature_augment_dict,
-                             **self.feature_dict}
+        #  custom feature augments with same key override previously registered ones
+        self.feature_dict.update(register.feature_augment_dict)
 
         # features for which it makes sense to consider the bipartite projection / clique reduction
         bip_proj_feats = [
-            # from core
             'node_betweenness_centrality',
             'node_degree',
             # from extensions
