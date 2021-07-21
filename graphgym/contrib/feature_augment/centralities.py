@@ -1,15 +1,36 @@
+import igraph
 import networkx as nx
 
 from graphgym.register import register_feature_augment
-from graphgym.contrib.feature_augment.util import bfs_accumulate, compute_stats
+from graphgym.contrib.feature_augment.util import bfs_accumulate, compute_stats, get_igraph_cached
 
 from pytictoc import TicToc
+
+
+def betweenness_impl(graph):
+    iG = get_igraph_cached(graph)
+    return iG.betweenness(
+        vertices=None,  # defaults to all vertices
+        directed=False
+    )
+
+
+def betweenness_centr_igraph(graph, **kwargs):
+    return betweenness_impl(graph)
+
+
+register_feature_augment('node_betweenness_centrality', betweenness_centr_igraph)
+
+
+def closeness_impl(graph):
+    iG = get_igraph_cached(graph)
+    return iG.closeness(vertices=None, mode="all", normalized=True)
 
 
 def closeness_centr_func(graph, **kwargs):
     t = TicToc()
     t.tic()
-    r = list(nx.algorithms.centrality.closeness_centrality(graph.G).values())
+    r = closeness_impl(graph)
     t.toc("Whole-graph closeness centralities")
     return r
 
@@ -20,7 +41,7 @@ register_feature_augment('node_closeness_centrality', closeness_centr_func)
 def eigenvector_centr_func(graph, **kwargs):
     t = TicToc()
     t.tic()
-    r = list(nx.algorithms.centrality.eigenvector_centrality(graph.G, max_iter=300).values())
+    r = list(nx.algorithms.centrality.eigenvector_centrality_numpy(graph.G, max_iter=300).values())
     t.toc("Whole-graph eigenvector centrality")
     return r
 
@@ -85,11 +106,12 @@ def ego_centrality_func(graph, **kwargs):
                 # ops to the node in question
                 eigenvector = (nx.algorithms.centrality.eigenvector_centrality_numpy(egoG, max_iter=300)[node])
                 # t.toc("eigenvector centrality", restart=True)
-                betweenness = (nx.betweenness_centrality(egoG)[node])
-                # t.toc("betweeness centrality", restart=True)
+                iG = igraph.Graph.from_networkx(egoG)
+                betweenness = iG.betweenness(vertices=[node], directed=False)[0]
+                # t.toc("betweenness centrality", restart=True)
                 degree = (nx.degree_centrality(egoG)[node])
                 # t.toc("degree centrality", restart=True)
-                closeness = (nx.algorithms.centrality.closeness_centrality(egoG)[node])
+                closeness = iG.closeness(vertices=[node], mode="all")[0]
                 # t.toc("closeness centrality", restart=True)
                 # computed centralities 0.315175 seconds.
             node_feats += [eigenvector, betweenness, degree, closeness]
@@ -103,6 +125,10 @@ def ego_centrality_func(graph, **kwargs):
 register_feature_augment('node_ego_centralities', ego_centrality_func)
 
 
+def eigenvector_impl(graph):
+    return nx.algorithms.centrality.eigenvector_centrality_numpy(graph.G, max_iter=300)
+
+
 def neighbour_centrality_statistics_func(graph, **kwargs):
     """
     Statistics (mean, max, min, stddev) of centralities of neighbour nodes, for each node.
@@ -112,14 +138,14 @@ def neighbour_centrality_statistics_func(graph, **kwargs):
     t.tic()
     feats = []
     # compute all centralities
-    betweenness = (nx.betweenness_centrality(nxG))
-    t.toc("betweeness centrality (whole graph)", restart=True)
+    betweenness = betweenness_impl(graph)
+    t.toc("betweeness centrality (igraph, whole graph)", restart=True)
     degree = (nx.degree_centrality(nxG))
-    t.toc("degree centrality (whole graph)", restart=True)
-    closeness = (nx.algorithms.centrality.closeness_centrality(nxG))
-    t.toc("closeness centrality (whole graph)", restart=True)
-    eigenvector = (nx.algorithms.centrality.eigenvector_centrality(nxG))
-    t.toc("eigenvector centrality (whole graph)", restart=True)
+    t.toc("degree centrality (nx, whole graph)", restart=True)
+    closeness = closeness_impl(graph)
+    t.toc("closeness centrality (igraph, whole graph)", restart=True)
+    eigenvector = eigenvector_impl(graph)
+    t.toc("eigenvector centrality (nx, whole graph)", restart=True)
     # then, for each neighbourhood, fetch and aggregate according centrs
     for node in nxG.nodes:
         neighbs = list(nxG.neighbors(node))

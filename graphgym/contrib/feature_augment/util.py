@@ -1,5 +1,6 @@
 import statistics
 
+import igraph
 import networkx
 import numpy as np
 import torch
@@ -149,6 +150,7 @@ def get_bip_proj_cached(graph):
         # i.e. ids of nodes that we want to consider in this split
         node_ids, a_idx, b_idx = tens_intersect(graph['node_label_index'], torch.tensor(non_rxn_nodes))
         dsG['node_label_index'] = b_idx
+        dsG['is_bipartite_projection'] = True
         graph['bipartite_projection'] = dsG
         t.toc("computed bipartite projection of " + graph['name'])
     return graph['bipartite_projection']
@@ -173,3 +175,19 @@ def collect_feature_augment(graph:deepsnap.graph.Graph):
     return torch.cat(
         [graph[name][node_index].float() for name in cfg.dataset.augment_feature],
         dim=1)
+
+
+def get_igraph_cached(graph) -> igraph.Graph:
+    is_proj = graph['is_bipartite_projection'] if 'is_bipartite_projection' in graph else False
+    if is_proj:
+        key = 'bipartite_projection_igraph'
+    else:
+        key = 'igraph'
+    if graph[key] is None:
+        t = TicToc()
+        t.tic()
+        iG = igraph.Graph.from_networkx(graph.G)
+        assert iG.is_directed() is False
+        graph[key] = iG
+        t.toc("converted to igraph")
+    return graph[key]
