@@ -56,7 +56,7 @@ if __name__ == '__main__':
             train(meters, loaders, model, optimizer, scheduler)
         else:
             train_dict[cfg.train.mode](
-                meters, loaders, model, optimizer, scheduler)
+                meters, loaders, model, optimizer, scheduler, datasets)
     # Aggregate results from different seeds
     agg_runs(get_parent_dir(out_dir_parent, args.cfg_file), cfg.metric_best)
     # When being launched in batch mode, mark a yaml as done

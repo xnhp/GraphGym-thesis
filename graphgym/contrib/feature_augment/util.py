@@ -154,17 +154,17 @@ def tens_intersect(x: torch.Tensor, y: torch.Tensor):
     return torch.tensor(intersect), torch.tensor(x_ind), torch.tensor(y_ind)
 
 
-def collect_feature_augment(batch, node_index):
+def collect_feature_augment(graph:deepsnap.graph.Graph):
     """
     Concat information from feature augments into node_feature tensor. Same as `Processing` module does in GNN models.
     Additionally takes a node_index mask of nodes to consider.
-    :param batch:
-    :param node_index:
+    :param graph:
     :return:
     """
-    dim_dict = {name: dim
-                for name, dim in zip(cfg.dataset.augment_feature,
-                                     cfg.dataset.augment_feature_dims)}
+    # consider only nodes that are not reactions because
+    # - we never want to duplicate reactions
+    # - bipartite projection and its node features do not contain reactions
+    node_index = get_non_rxn_nodes(graph.G)
     return torch.cat(
-        [batch[name][node_index].float() for name in dim_dict],
+        [graph[name][node_index].float() for name in cfg.dataset.augment_feature],
         dim=1)

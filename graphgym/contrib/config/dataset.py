@@ -4,7 +4,6 @@ from graphgym.register import register_config
 
 
 def set_cfg_dataset(cfg):
-
     # If True, ignore all complex species during reading of the dataset
     # This means these species will not appear in the graph.
     cfg.dataset.exclude_complex_species = False
@@ -15,6 +14,10 @@ def set_cfg_dataset(cfg):
     # note these usually begin with `node_`
     cfg.dataset.normalize_feats = []
 
+    # Names (in the sense of `util.get_dataset`) of datasets to use for training and testing resp.
+    # A train/test split *within* the separate graphs is still possible
+    cfg.dataset.train_names = []
+    cfg.dataset.test_names = []
 
     # Whether to save/load feature augment data to/from disk or recompute.
     # expected values:
