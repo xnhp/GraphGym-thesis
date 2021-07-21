@@ -23,5 +23,12 @@ def set_cfg_dataset(cfg):
     # - 'disabled'      : always recompute, do not touch cache at all
     cfg.dataset.feat_cache = 'use_and_update'
 
+    # Possible species classes. This needs to be fixed beforehand because we include
+    #   (one-hot) encodings of these classes as features. We cannot infer these possible values
+    #   from the input data since we may supply multiple graphs and we cannot depend on the range
+    #   or order or consistency of values they provide.
+    cfg.dataset.possible_classes = ['PROTEIN', 'reaction', 'RNA', 'DEGRADED', 'UNKNOWN', 'SIMPLE_MOLECULE', 'ION',
+                                    'GENE', 'PHENOTYPE', 'DRUG']
+
 
 register_config('dataset_config', set_cfg_dataset)
