@@ -7,3 +7,9 @@ run/datasets/data/
 /run/results/
 /run/svm-repro/generated-configs/
 /run/svm-repro/results/config/
+/run/whole-graph-split-playground/feature-augment-cache/
+/run/whole-graph-split-playground/generated-configs/
+/run/whole-graph-split-playground/results/
+/run/*/feature-augment-cache/
+/run/*/generated-configs/
+/run/*/results/
