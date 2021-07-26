@@ -90,6 +90,9 @@ def graph_from_model(model: SBMLModel, name=None) -> nx.Graph:
     #     and in any case duplicating isolated nodes seems out of scope
     no_deg_nodes = [node for (node, degree) in G.degree if degree == 0]
     G.remove_nodes_from(no_deg_nodes)
+    degrees = [deg for (node, deg) in G.degree()]
+    # assert max(degrees) >= SBMLModel.min_node_degree
+    assert min(degrees) > 0
 
     return G
 

@@ -152,6 +152,7 @@ def get_bip_proj_cached(graph):
         node_ids, a_idx, b_idx = tens_intersect(graph['node_label_index'], torch.tensor(non_rxn_nodes))
         dsG['node_label_index'] = b_idx
         dsG['is_bipartite_projection'] = True
+        dsG['name'] = graph['name'] + " (bipartite projection)"
         graph['bipartite_projection'] = dsG
         t.toc("computed bipartite projection of " + graph['name'])
     return graph['bipartite_projection']

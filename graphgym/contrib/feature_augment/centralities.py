@@ -107,13 +107,13 @@ def ego_centrality_func(graph, **kwargs):
             if len(egoG.nodes) < 3:
                 # computing centralities on subgraphs with leq two nodes does not make sense
                 # we assume values of 0 then
-                # have to handle this case explicitly since some method calls fail otherwise (e.g. eigenvector_centrality_numpy)
-                # print("number of nodes in ego graph < 3")
+                # have to handle this case explicitly since some method calls fail otherwise
+                # (e.g. eigenvector_centrality_numpy)
                 eigenvector = betweenness = degree = closeness = 0
             else:
-                # t.tic()
-                # Four centrality scores calculated for a sub-graph consisting of all nodes within a given distance of 3 and 5 h
-                # ops to the node in question
+                # Four centrality scores calculated for a sub-graph consisting of all nodes within a given distance of
+                # 3 and 5 hops to the node in question
+                # calls arpack under the hood, just like igraph
                 eigenvector = (nx.algorithms.centrality.eigenvector_centrality_numpy(egoG, max_iter=300)[node])
                 # t.toc("eigenvector centrality", restart=True)
                 iG = igraph.Graph.from_networkx(egoG)
