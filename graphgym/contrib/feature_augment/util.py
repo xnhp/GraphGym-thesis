@@ -5,6 +5,7 @@ import networkx
 import numpy as np
 import torch
 from pytictoc import TicToc
+from sklearn.utils import check_array
 
 import deepsnap
 import os
@@ -161,7 +162,7 @@ def tens_intersect(x: torch.Tensor, y: torch.Tensor):
     return torch.tensor(intersect), torch.tensor(x_ind), torch.tensor(y_ind)
 
 
-def collect_feature_augment(graph:deepsnap.graph.Graph):
+def collect_feature_augment(graph: deepsnap.graph.Graph):
     """
     Concat information from feature augments into node_feature tensor. Same as `Processing` module does in GNN models.
     Additionally takes a node_index mask of nodes to consider.
@@ -171,6 +172,9 @@ def collect_feature_augment(graph:deepsnap.graph.Graph):
     # consider only nodes that are not reactions because
     # - we never want to duplicate reactions
     # - bipartite projection and its node features do not contain reactions
+    for name in cfg.dataset.augment_feature:
+        check_array(graph[name])
+
     node_index = get_non_rxn_nodes(graph.G)
     return torch.cat(
         [graph[name][node_index].float() for name in cfg.dataset.augment_feature],

@@ -1,10 +1,12 @@
 import igraph
 import networkx as nx
+import numpy
 
 from graphgym.register import register_feature_augment
 from graphgym.contrib.feature_augment.util import bfs_accumulate, compute_stats, get_igraph_cached
 
 from pytictoc import TicToc
+from sklearn.utils import check_array
 
 
 def betweenness_impl(graph):
@@ -24,7 +26,15 @@ register_feature_augment('node_betweenness_centrality', betweenness_centr_igraph
 
 def closeness_impl(graph):
     iG = get_igraph_cached(graph)
-    return iG.closeness(vertices=None, mode="all", normalized=True)
+    r = iG.closeness(vertices=None, mode="all", normalized=True)
+    npr = numpy.array(r)
+    # impl. yields NaN for isolated nodes, replace with 0
+    npr = numpy.nan_to_num(npr, nan=0.0, copy=False)
+    # to_check = numpy.array(r).reshape(-1, 1)
+    # can verify for NaN values like so:
+    # to_check = numpy.array(r).reshape(-1, 1)
+    # check_array(to_check)
+    return list(npr)
 
 
 def closeness_centr_func(graph, **kwargs):
