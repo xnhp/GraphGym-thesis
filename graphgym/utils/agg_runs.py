@@ -25,7 +25,7 @@ def is_seed(s):
 
 
 def is_split(s):
-    if s in ['train', 'val', 'test']:
+    if s in ['train', 'val', 'test', 'val-graph']:
         return True
     else:
         return False
@@ -68,8 +68,8 @@ def rm_keys(dict, keys):
 
 # single experiments
 def agg_runs(dir, metric_best='auto'):
-    results = {'train': None, 'val': None, 'test': None}
-    results_best = {'train': None, 'val': None, 'test': None}
+    results = {'train': None, 'val': None, 'test': None, 'val-graph': None}
+    results_best = {'train': None, 'val': None, 'test': None, 'val-graph': None}
     for seed in os.listdir(dir):
         if is_seed(seed):
             dir_seed = os.path.join(dir, seed)
