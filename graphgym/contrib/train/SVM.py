@@ -118,11 +118,10 @@ def run_svm(loggers, loaders, model, optimizer, scheduler, datasets):
     rbf_svc = svm.SVC(
         probability=True,
         kernel=cfg.model.svm_kernel,
-        class_weight='balanced',
-        # class_weight={
-        #     label: weight
-        #     for label, weight in enumerate(cfg.model.class_weights)
-        # },
+        class_weight={
+            0: 1,
+            1: cfg.model.class_weights
+        },
         gamma=cfg.model.svm_gamma,
         C=cfg.model.svm_cost
     )
