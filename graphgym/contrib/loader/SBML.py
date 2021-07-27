@@ -1,3 +1,4 @@
+from cachier import cachier
 from pytictoc import TicToc
 
 import deepsnap.dataset
@@ -21,8 +22,8 @@ def SBML_multi(format, name, dataset_dir) -> list[deepsnap.graph.Graph]:
         graph['is_'+split] = True
         return graph
 
-    train_graphs = [mark('train', sbml_single_impl(name)) for name in cfg.dataset.train_names]
-    test_graphs = [mark('test', sbml_single_impl(name)) for name in cfg.dataset.test_names]
+    train_graphs = [mark('train', sbml_single_impl(name, verbose_cache=True)) for name in cfg.dataset.train_names]
+    test_graphs = [mark('test', sbml_single_impl(name, verbose_cache=True)) for name in cfg.dataset.test_names]
 
     return train_graphs + test_graphs
 
@@ -34,9 +35,10 @@ def SBML_single(format, name, dataset_dir) -> list[deepsnap.graph.Graph]:
     if cfg.dataset.format != "SBML":
         return None
 
-    return [sbml_single_impl(name)]
+    return [sbml_single_impl(name, verbose_cache=True)]
 
 
+@cachier()
 def sbml_single_impl(name) -> deepsnap.graph.Graph:
     path, model_class = get_dataset(name)
     model = model_class(path)
