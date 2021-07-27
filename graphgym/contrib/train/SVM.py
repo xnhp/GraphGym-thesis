@@ -140,7 +140,7 @@ def run_svm(loggers, loaders, model, optimizer, scheduler, datasets):
     save_labels(Y_train, 'Y_train', logger_train.out_dir)
     save_labels(pred_train[:, 1], 'pred_train', logger_train.out_dir)
     save_labels(Y_val, 'Y_val', logger_val.out_dir)
-    save_labels(pred_val, 'pred_val', logger_val.out_dir)
+    save_labels(pred_val[:, 1], 'pred_val', logger_val.out_dir)
 
     for logger in loggers:
         logger.close()
