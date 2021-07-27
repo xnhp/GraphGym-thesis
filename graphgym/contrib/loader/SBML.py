@@ -58,7 +58,8 @@ register_loader('SBML_single', SBML_single)
 
 def graph_from_model(model: SBMLModel, name=None) -> nx.Graph:
     """
-    :param path:
+    :param name:
+    :param model:
     :return:
     """
     G = nx.Graph()
@@ -70,7 +71,7 @@ def graph_from_model(model: SBMLModel, name=None) -> nx.Graph:
 
     # add nodes for reactions and edges from/to reactions
     for rxn in model.reactions:
-        rxn: Dict  # of info about this reaction
+        rxn: dict  # of info about this reaction
         rxn_data = rxn.copy()
         del rxn_data['reactants']
         del rxn_data['products']
