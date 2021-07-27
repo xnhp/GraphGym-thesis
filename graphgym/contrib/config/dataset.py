@@ -11,8 +11,27 @@ def set_cfg_dataset(cfg):
     # also see SBMLModel.min_node_degree
 
     # keys of features to normalise. These can also be features determined by GG`s feature augments.
-    # note these usually begin with `node_`
-    cfg.dataset.normalize_feats = []
+    # note these usually begin with `node_`.
+    # If such a feature is not present (in all graphs) in the dataset, nothing happens
+    # ↝ graphgym.contrib.transform.normalize.normalize_scale
+    # ↝ graphgym.contrib.transform.normalize.normalize_fit
+    cfg.dataset.normalize_feats = [
+        "node_degree",
+        "node_degree_projection",
+        "node_clustering_coefficient",
+        "node_betweenness_centrality",
+        "node_betweenness_centrality_projection",
+        "node_ego_centralities",
+        "node_ego_centralities_projection",
+        "node_closeness_centrality",
+        "node_closeness_centrality_projection",
+        "node_eigenvector_centrality",
+        "node_eigenvector_centrality_projection",
+        "node_neighbour_centrality_statistics",
+        "node_neighbour_centrality_statistics_projection",
+        "node_distance_set_size",
+        "node_distance_set_size_projection"
+    ]
 
     # Names (in the sense of `util.get_dataset`) of datasets to use for training and testing resp.
     # A train/test split *within* the separate graphs is still possible
@@ -20,10 +39,7 @@ def set_cfg_dataset(cfg):
     cfg.dataset.test_names = []
 
     # Whether to save/load feature augment data to/from disk or recompute.
-    # expected values:
-    # - 'use_and_update': use data from cache if available; update cache if recomputed
-    # - 'update_always' : always recompute and put into cache
-    # - 'disabled'      : always recompute, do not touch cache at all
+    # expected values: ↝ graphgym.contrib.feature_augment.util.cache_wrap
     cfg.dataset.feat_cache = 'use_and_update'
 
     # Possible species classes. This needs to be fixed beforehand because we include

@@ -19,8 +19,12 @@ def normalize_scale(graph, scalers=None):
     label_index = graph.node_label_index
     assert scalers is not None
     assert label_index is not None
-    if cfg.dataset.normalize_feats is not None and scalers is not None:
-        assert len(cfg.dataset.normalize_feats) == len(scalers.keys())
+
+    print(f"normalizing features {list(scalers.keys())}")
+    not_normalized_feats = [key for key, _ in graph if
+                            key.startswith("node_") and key not in cfg.dataset.normalize_feats]
+    if not_normalized_feats:
+        print(f"some features are NOT normalized: {not_normalized_feats}")
 
     if cfg.dataset.normalize_feats is None:  # i.e. empty
         return
@@ -50,6 +54,8 @@ def normalize_scale(graph, scalers=None):
 
 def normalize_fit(dataset) -> dict:
     """
+    Create a normalizer/scaler for each feature that is configured to be normalized and present
+    in the input data
     :param dataset: Usually the training dataset on which to fit the scalers
     :return: A dict of feature key -> fitted scaler
     """
@@ -67,7 +73,6 @@ def normalize_fit(dataset) -> dict:
 
     return {
         feat_key: MinMaxScaler().fit(gather_feats(feat_key))
-        for feat_key in cfg.dataset.normalize_feats
+        for feat_key in cfg.dataset.normalize_feats if
+        all([feat_key in graph for graph in dataset])
     }
-
-
