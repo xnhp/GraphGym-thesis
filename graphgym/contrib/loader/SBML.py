@@ -1,4 +1,7 @@
 from cachier import cachier
+from graphgym.contrib.feature_augment.util import split_rxn_nodes
+
+from deepsnap.hetero_graph import HeteroGraph
 from pytictoc import TicToc
 
 import deepsnap.dataset
@@ -18,12 +21,18 @@ def SBML_multi(format, name, dataset_dir) -> list[deepsnap.graph.Graph]:
     if len(cfg.dataset.train_names) < 1 or len(cfg.dataset.test_names) < 1:
         raise Exception("No train and/or test datasets provided")
 
+    loader_fns = {
+        'simple': sbml_single_impl,
+        'het_bipartite': sbml_single_bip
+    }
+    loader = loader_fns[cfg.dataset.graph_interpretation]
+
     def mark(split, graph):
-        graph['is_'+split] = True
+        graph['is_' + split] = True
         return graph
 
-    train_graphs = [mark('train', sbml_single_impl(name, verbose_cache=True)) for name in cfg.dataset.train_names]
-    test_graphs = [mark('test', sbml_single_impl(name, verbose_cache=True)) for name in cfg.dataset.test_names]
+    train_graphs = [mark('train', loader(name, verbose_cache=True)) for name in cfg.dataset.train_names]
+    test_graphs = [mark('test', loader(name, verbose_cache=True)) for name in cfg.dataset.test_names]
 
     return train_graphs + test_graphs
 
@@ -36,6 +45,38 @@ def SBML_single(format, name, dataset_dir) -> list[deepsnap.graph.Graph]:
         return None
 
     return [sbml_single_impl(name, verbose_cache=True)]
+
+
+def SBML_single_bip_loader(format, name, dataset_dir) -> list[deepsnap.graph.Graph]:
+    if cfg.dataset.format != "SBML_bip":
+        return None
+    return [sbml_single_bip(name)]
+
+
+def sbml_single_bip(name, **_kwargs) -> deepsnap.hetero_graph.HeteroGraph:
+    """
+    :param name:  identifier of the dataset to load from
+    :return: a heterogeneous graph with only two node types: reactions and species (all others)
+    """
+    dsG: deepsnap.graph.Graph
+    dsG = sbml_single_impl(name)
+    nxG = dsG.G
+    rxn_nodes, non_rxn_nodes = split_rxn_nodes(nxG)
+    for node_id, _ in rxn_nodes:
+        nxG.nodes[node_id]['node_type'] = "het_reaction_t"
+    for node_id, _ in non_rxn_nodes:
+        nxG.nodes[node_id]['node_type'] = "het_species_t"
+
+    # def set_node_types(graph, **kwargs):
+    #     rxn_nodes, non_rxn_nodes = split_rxn_nodes(graph.G)
+    #     for node_id, _ in rxn_nodes:
+    #         graph.G.nodes[node_id]['node_type'] = "het_reaction_t"
+    #     for node_id, _ in non_rxn_nodes:
+    #         graph.G.nodes[node_id]['node_type'] = "het_species_t"
+    #
+    # dsG.apply_transform(set_node_types, update_tensor=True)
+    # TODO do we need to set edge types?
+    return HeteroGraph(nxG)
 
 
 @cachier()

@@ -49,5 +49,9 @@ def set_cfg_dataset(cfg):
     cfg.dataset.possible_classes = ['PROTEIN', 'reaction', 'RNA', 'DEGRADED', 'UNKNOWN', 'SIMPLE_MOLECULE', 'ION',
                                     'GENE', 'PHENOTYPE', 'DRUG']
 
+    # whether to interpret the graph as simple graph, heterogeneous graph, bipartite, ...
+    # will affect how some attributes (e.g. node_type) are set and what concrete subclass
+    # of deepsnap.graph.Graph is created
+    cfg.dataset.graph_interpretation = "simple"
 
 register_config('dataset_config', set_cfg_dataset)

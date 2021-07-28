@@ -130,6 +130,26 @@ def get_non_rxn_nodes(graph: networkx.Graph):
     """
     return [node for (node, nodeclass) in graph.nodes(data='class') if nodeclass != 'reaction']
 
+def split_by_predicate(l, pred):
+    yes = []
+    no = []
+    for x in l:
+        if pred(x):
+            yes.append(x)
+        else:
+            no.append(x)
+    return yes, no
+
+def split_rxn_nodes(graph: networkx.Graph):
+    """
+    :param graph:
+    :return: (rxn nodes, non-rxn nodes)
+    """
+    # ↝ data / util.py: 156
+    # ↝ data/util.py:128
+    return split_by_predicate(graph.nodes(data='class'),
+                              lambda x: x[1] == 'reaction')
+
 
 def get_bip_proj_cached(graph):
     if graph['bipartite_projection'] is None:
