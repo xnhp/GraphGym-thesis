@@ -6,7 +6,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from graphgym.config import cfg
-from graphgym.contrib.feature_augment.util import bipartite_projection_wrap, cache_wrap
+from graphgym.contrib.feature_augment.util import cache_wrap, simple_wrap, projection_wrap
 from graphgym.contrib.transform.identity import compute_identity
 
 from deepsnap.graph import Graph
@@ -128,7 +128,7 @@ class FeatureAugment(nn.Module):
         #  custom feature augments with same key override previously registered ones
         self.feature_dict.update(register.feature_augment_dict)
 
-        # features for which it makes sense to consider the bipartite projection / clique reduction
+        # features that can be computed both on simple graphs and on bipartite projection / clique reduction
         bip_proj_feats = [
             'node_betweenness_centrality',
             'node_degree',
@@ -139,9 +139,18 @@ class FeatureAugment(nn.Module):
             'node_neighbour_centrality_statistics',
             'node_distance_set_size'
         ]
-        # register wraps of these as well
+
+        # wrap all "simple" feature augments to always use simple graph, no matter if were given bipartite projection
+        # (then assumes it as a simple representation attached)
         self.feature_dict.update({
-                proj_feat + "_projection" : bipartite_projection_wrap(self.feature_dict[proj_feat])
+            feat_key: simple_wrap(self.feature_dict[feat_key])
+            for feat_key in bip_proj_feats
+        })
+
+        # add feature augments that operate on bipartite projection
+        # these will always operate on bip-proj, no matter what graph is given as primary
+        self.feature_dict.update({
+                proj_feat + "_projection": projection_wrap(self.feature_dict[proj_feat])
                 for proj_feat in bip_proj_feats
         })
 
@@ -354,6 +363,8 @@ class Preprocess(nn.Module):
         return repr_str
 
     def forward(self, batch):
+        # TODO need to sub-index features computed on simple graph
+        #   like in SVM.py?
         batch.node_feature = torch.cat(
             [batch[name].float() for name in self.dim_dict],
             dim=1)

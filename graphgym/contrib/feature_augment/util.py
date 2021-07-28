@@ -1,9 +1,11 @@
 import statistics
+from typing import Tuple
 
 import igraph
 import networkx
 import numpy as np
 import torch
+from networkx.algorithms import bipartite
 from pytictoc import TicToc
 from sklearn.utils import check_array
 
@@ -114,11 +116,43 @@ def compute_stats(l):
     return list([mean, minv, maxv, stddev])
 
 
-def bipartite_projection_wrap(augment_func):
-    # the actual feature augment that is called
-    def wrapped(graph, **kwargs):
-        return augment_func(get_bip_proj_cached(graph), **kwargs)
+def get_bip_proj_repr(graph):
+    if cfg.dataset.graph_interpretation == "simple":
+        return get_bip_proj_cached(graph)
+    elif cfg.dataset.graph_interpretation == "bipartite_projection":
+        return graph
+    else:
+        raise NotImplementedError()
 
+
+def projection_wrap(augment_func):
+    """
+    always call the given augment on the bipartite projection
+    :param augment_func:
+    :return:
+    """
+    def wrapped(graph, **kwargs):
+        return augment_func(get_bip_proj_repr(graph), **kwargs)
+    return wrapped
+
+
+def get_simple_repr(graph):
+    if cfg.dataset.graph_interpretation == "simple":
+        return graph
+    elif cfg.dataset.graph_interpretation == "bipartite_projection":
+        return graph['simple_graph']  # TODO
+    else:
+        raise NotImplementedError()
+
+
+def simple_wrap(augment_func):
+    """
+    always call the given augment on the simple graph
+    :param augment_func:
+    :return:
+    """
+    def wrapped(graph, **kwargs):
+        return augment_func(get_simple_repr(graph), **kwargs)
     return wrapped
 
 
@@ -130,6 +164,7 @@ def get_non_rxn_nodes(graph: networkx.Graph):
     """
     return [node for (node, nodeclass) in graph.nodes(data='class') if nodeclass != 'reaction']
 
+
 def split_by_predicate(l, pred):
     yes = []
     no = []
@@ -139,6 +174,7 @@ def split_by_predicate(l, pred):
         else:
             no.append(x)
     return yes, no
+
 
 def split_rxn_nodes(graph: networkx.Graph):
     """
@@ -155,12 +191,7 @@ def get_bip_proj_cached(graph):
     if graph['bipartite_projection'] is None:
         t = TicToc()
         t.tic()
-        from networkx.algorithms import bipartite
-        non_rxn_nodes = get_non_rxn_nodes(graph.G)
-        assert min([deg for (node, deg) in graph.G.degree]) > 0
-        assert bipartite.is_bipartite_node_set(graph.G, non_rxn_nodes)
-        bipartite_projection = bipartite.projected_graph(graph.G,
-                                                         non_rxn_nodes)  # connected if common neighbour in rxn_nodes
+        bipartite_projection, non_rxn_nodes = bipartite_projection_on_non_rxn(graph.G)
         dsG = deepsnap.graph.Graph(bipartite_projection,
                                    # avoid updating internal tensor repr
                                    edge_label_index=[],
@@ -176,6 +207,21 @@ def get_bip_proj_cached(graph):
         graph['bipartite_projection'] = dsG
         t.toc("computed bipartite projection of " + graph['name'])
     return graph['bipartite_projection']
+
+
+def bipartite_projection_on_non_rxn(nxG: networkx.Graph) -> Tuple[networkx.Graph, list]:
+    """
+    :param nxG:
+    :return: A networkx graph of the bipartite projection containing non-reaction nodes that are adjacent
+        iff they share a common reaction; and a list of node indices into the original graph identifying
+        non-reaction nodes.
+    """
+    non_rxn_nodes = get_non_rxn_nodes(nxG)
+    assert min([deg for (node, deg) in nxG.degree]) > 0
+    assert bipartite.is_bipartite_node_set(nxG, non_rxn_nodes)
+    bipartite_projection = bipartite.projected_graph(nxG,
+                                                     non_rxn_nodes)  # connected if common neighbour in rxn_nodes
+    return bipartite_projection, non_rxn_nodes
 
 
 def tens_intersect(x: torch.Tensor, y: torch.Tensor):

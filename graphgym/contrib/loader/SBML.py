@@ -1,5 +1,6 @@
+import networkx
 from cachier import cachier
-from graphgym.contrib.feature_augment.util import split_rxn_nodes
+from graphgym.contrib.feature_augment.util import split_rxn_nodes, bipartite_projection_on_non_rxn
 
 from deepsnap.hetero_graph import HeteroGraph
 from pytictoc import TicToc
@@ -23,7 +24,8 @@ def SBML_multi(format, name, dataset_dir) -> list[deepsnap.graph.Graph]:
 
     loader_fns = {
         'simple': sbml_single_impl,
-        'het_bipartite': sbml_single_bip
+        'het_bipartite': sbml_single_heterogeneous,
+        'bipartite_projection': sbml_single_bipartite_projection
     }
     loader = loader_fns[cfg.dataset.graph_interpretation]
 
@@ -50,16 +52,33 @@ def SBML_single(format, name, dataset_dir) -> list[deepsnap.graph.Graph]:
 def SBML_single_bip_loader(format, name, dataset_dir) -> list[deepsnap.graph.Graph]:
     if cfg.dataset.format != "SBML_bip":
         return None
-    return [sbml_single_bip(name)]
+    return [sbml_single_heterogeneous(name)]
 
 
-def sbml_single_bip(name, **_kwargs) -> deepsnap.hetero_graph.HeteroGraph:
+def sbml_single_bipartite_projection(name, **kwargs) -> deepsnap.graph.Graph:
+
+    # load graph as usual
+    nxG = load_nxG(name)
+    # compute bipartite projection
+    bipartite_projection: networkx.Graph
+    bipartite_projection, _ = bipartite_projection_on_non_rxn(nxG)
+
+    dsG = nxG_to_dsG(bipartite_projection)
+    # attach simple graph as attribute
+    dsG['is_bipartite_projection'] = True
+    dsG['simple_graph'] = nxG_to_dsG(nxG)
+
+    return dsG
+    # in feature augments, switch which graph to use
+
+
+def sbml_single_heterogeneous(name, **_kwargs) -> deepsnap.hetero_graph.HeteroGraph:
     """
     :param name:  identifier of the dataset to load from
     :return: a heterogeneous graph with only two node types: reactions and species (all others)
     """
     dsG: deepsnap.graph.Graph
-    dsG = sbml_single_impl(name)
+    dsG = sbml_single_impl(name, verbose_cache=True)
     nxG = dsG.G
     rxn_nodes, non_rxn_nodes = split_rxn_nodes(nxG)
     for node_id, _ in rxn_nodes:
@@ -67,24 +86,22 @@ def sbml_single_bip(name, **_kwargs) -> deepsnap.hetero_graph.HeteroGraph:
     for node_id, _ in non_rxn_nodes:
         nxG.nodes[node_id]['node_type'] = "het_species_t"
 
-    # def set_node_types(graph, **kwargs):
-    #     rxn_nodes, non_rxn_nodes = split_rxn_nodes(graph.G)
-    #     for node_id, _ in rxn_nodes:
-    #         graph.G.nodes[node_id]['node_type'] = "het_reaction_t"
-    #     for node_id, _ in non_rxn_nodes:
-    #         graph.G.nodes[node_id]['node_type'] = "het_species_t"
-    #
-    # dsG.apply_transform(set_node_types, update_tensor=True)
     # TODO do we need to set edge types?
     return HeteroGraph(nxG)
 
 
 @cachier()
 def sbml_single_impl(name) -> deepsnap.graph.Graph:
-    path, model_class = get_dataset(name)
-    model = model_class(path)
-    nxG: nx.Graph
-    nxG = graph_from_model(model, name=name)
+    nxG = load_nxG(name)
+    return nxG_to_dsG(nxG)
+
+
+def nxG_to_dsG(nxG):
+    """
+    Construct a DeepSNAP graph suited for use with GG
+    :param nxG:
+    :return:
+    """
     # do not really have extracted real node features yet but have to set some
     for nodeIx in nxG.nodes:
         feat = np.zeros(1)
@@ -92,6 +109,21 @@ def sbml_single_impl(name) -> deepsnap.graph.Graph:
         nxG.nodes[nodeIx]['node_feature'] = feat
         # node label should be set
     return deepsnap.graph.Graph(nxG)
+
+
+@cachier()
+def load_nxG(name):
+    """
+    Provides the networkx graph that can be wrapped into a DeepSNAP graph
+    for use in a DeepSNAP dataset.
+    :param name:
+    :return:
+    """
+    path, model_class = get_dataset(name)
+    model = model_class(path)
+    nxG: nx.Graph
+    nxG = graph_from_model(model, name=name)
+    return nxG
 
 
 register_loader('SBML_single', SBML_single)

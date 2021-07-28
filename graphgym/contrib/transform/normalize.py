@@ -3,7 +3,7 @@ from typing import TypedDict
 
 import torch
 from graphgym.config import cfg
-from graphgym.contrib.feature_augment.util import get_bip_proj_cached
+from graphgym.contrib.feature_augment.util import get_bip_proj_cached, get_bip_proj_repr
 from sklearn.preprocessing import MinMaxScaler
 
 
@@ -34,6 +34,7 @@ def normalize_scale(graph, scalers=None):
         # note that technically the entire tensor of size n is present but we only
         # touch those corresponding to the current split.
 
+        # features computed on bipartite projection are of different size
         if key.endswith('_projection'):
             # label_index corresponds to the entire graph (not bipartite projection)
             #   this is a problem if feature (in graph_key) are of smaller shape (if computed on bipartite projection)
@@ -41,8 +42,8 @@ def normalize_scale(graph, scalers=None):
             #   When handling multiple graphs (`GraphDataSet` and its splits), the individual graphs are `copy`ed during
             #   split, i.e. we compute this multiple times but wouldn't need to
             #   (but then watch out for setting of attribute of node_label_index on bip proj)
-            get_bip_proj_cached(graph)  # compute bip projection if not present
-            label_index = graph['bipartite_projection']['node_label_index']
+            graph_to_use = get_bip_proj_repr(graph)
+            label_index = graph_to_use['node_label_index']
         else:
             label_index = graph.node_label_index
         # apply scalers to all graphs
