@@ -142,17 +142,20 @@ class FeatureAugment(nn.Module):
 
         # wrap all "simple" feature augments to always use simple graph, no matter if were given bipartite projection
         # (then assumes it as a simple representation attached)
-        self.feature_dict.update({
+        simple_wrapped = {
             feat_key: simple_wrap(self.feature_dict[feat_key])
             for feat_key in bip_proj_feats
-        })
+        }
 
         # add feature augments that operate on bipartite projection
         # these will always operate on bip-proj, no matter what graph is given as primary
-        self.feature_dict.update({
+        projection_wrapped = {
                 proj_feat + "_projection": projection_wrap(self.feature_dict[proj_feat])
                 for proj_feat in bip_proj_feats
-        })
+        }
+
+        self.feature_dict.update(simple_wrapped)
+        self.feature_dict.update(projection_wrapped)
 
         # wrap all feature augments in a cache check
         self.feature_dict.update({
