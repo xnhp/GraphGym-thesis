@@ -119,8 +119,10 @@ def ego_centrality_func(graph, **kwargs):
                 # (e.g. eigenvector_centrality_numpy)
                 eigenvector = betweenness = degree = closeness = 0
             else:
+                # note that these are centralities in the ego graphs and different from the centralities computed
+                #   in other feature augments
                 # Four centrality scores calculated for a sub-graph consisting of all nodes within a given distance of
-                # 3 and 5 hops to the node in question
+                #   3 and 5 hops to the node in question
                 # calls arpack under the hood, just like igraph
                 eigenvector = (nx.algorithms.centrality.eigenvector_centrality_numpy(egoG, max_iter=300)[node])
                 # t.toc("eigenvector centrality", restart=True)

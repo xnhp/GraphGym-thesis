@@ -196,7 +196,7 @@ def transform_after_split(datasets):
     # apply normalisation to dataset.
     if cfg.dataset.transform == 'normalize':
         train_graphs = datasets[0]
-        scalers : dict
+        scalers: dict
         # initialise the scaler(s) using train split
 
         scalers = normalize_fit(train_graphs)

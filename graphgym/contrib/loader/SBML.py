@@ -1,6 +1,6 @@
 import networkx
 from cachier import cachier
-from graphgym.contrib.feature_augment.util import split_rxn_nodes, bipartite_projection_on_non_rxn
+from graphgym.contrib.feature_augment.util import split_rxn_nodes, bipartite_projection_onto_non_rxn
 
 from deepsnap.hetero_graph import HeteroGraph
 from pytictoc import TicToc
@@ -61,7 +61,7 @@ def sbml_single_bipartite_projection(name, **kwargs) -> deepsnap.graph.Graph:
     nxG = load_nxG(name)
     # compute bipartite projection
     bipartite_projection: networkx.Graph
-    bipartite_projection, _ = bipartite_projection_on_non_rxn(nxG)
+    bipartite_projection, _ = bipartite_projection_onto_non_rxn(nxG)
 
     dsG = nxG_to_dsG(bipartite_projection)
     # attach simple graph as attribute

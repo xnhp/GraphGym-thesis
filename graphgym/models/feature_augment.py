@@ -123,6 +123,7 @@ class FeatureAugment(nn.Module):
             'graph_path_len': graph_path_len_fun,
             'graph_clustering_coefficient': graph_clustering_fun
         }
+        # some of these are overwritten in contrib.
 
         # add feature augments from registry
         #  custom feature augments with same key override previously registered ones
@@ -368,6 +369,9 @@ class Preprocess(nn.Module):
     def forward(self, batch):
         # TODO need to sub-index features computed on simple graph
         #   like in SVM.py?
+        # at this point, all information across different graphs is already
+        # coalesced into the "batch", including edge index
+        # can map these back to the individual graphs with indices in batch.batch
         batch.node_feature = torch.cat(
             [batch[name].float() for name in self.dim_dict],
             dim=1)

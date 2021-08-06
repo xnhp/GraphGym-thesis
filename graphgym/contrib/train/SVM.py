@@ -78,6 +78,9 @@ def get_external_split_graphs(datasets):
 
 
 def run_svm(loggers, loaders, model, optimizer, scheduler, datasets):
+    # expects to be given simple graphs as primary format, will construct and access bipartite projection
+    # via attribute.
+
     # batch_train and batch_test contain *all* given graphs, each of these having a resp. node_label_index mask
     # for *internal* train/test split.
     # the batch contains as attributes (features) of *all* graphs in a stacked (indistinguishable) shape.

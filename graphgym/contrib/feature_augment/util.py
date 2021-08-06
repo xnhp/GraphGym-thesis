@@ -207,7 +207,7 @@ def get_bip_proj_cached(graph):
     if graph['bipartite_projection'] is None:
         t = TicToc()
         t.tic()
-        bipartite_projection, non_rxn_nodes = bipartite_projection_on_non_rxn(graph.G)
+        bipartite_projection, non_rxn_nodes = bipartite_projection_onto_non_rxn(graph.G)
         dsG = deepsnap.graph.Graph(bipartite_projection,
                                    # avoid updating internal tensor repr
                                    edge_label_index=[],
@@ -225,7 +225,7 @@ def get_bip_proj_cached(graph):
     return graph['bipartite_projection']
 
 
-def bipartite_projection_on_non_rxn(nxG: networkx.Graph) -> Tuple[networkx.Graph, list]:
+def bipartite_projection_onto_non_rxn(nxG: networkx.Graph) -> Tuple[networkx.Graph, list]:
     """
     :param nxG:
     :return: A networkx graph of the bipartite projection containing non-reaction nodes that are adjacent
@@ -248,16 +248,17 @@ def tens_intersect(x: torch.Tensor, y: torch.Tensor):
 def collect_feature_augment(graph: deepsnap.graph.Graph):
     """
     Concat information from feature augments into node_feature tensor. Same as `Processing` module does in GNN models.
-    Additionally takes a node_index mask of nodes to consider.
+    Considers only nodes that are not reactions because
+    - we never want to duplicate reactions
+    - bipartite projection and its node features do not contain reactions
     :param graph:
     :return:
     """
-    # consider only nodes that are not reactions because
-    # - we never want to duplicate reactions
-    # - bipartite projection and its node features do not contain reactions
+    # check for invalid values like NaN or infinity
     for name in cfg.dataset.augment_feature:
         check_array(graph[name])
 
+    # ↝ graphgym.models.feature_augment.Preprocess.forward
     node_index = get_non_rxn_nodes(graph.G)
     return torch.cat(
         [graph[name][node_index].float() for name in cfg.dataset.augment_feature],
