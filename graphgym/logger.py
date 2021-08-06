@@ -185,7 +185,15 @@ def infer_task(datasets):
 
 def create_logger(datasets):
     loggers = []
-    names = ['train', 'val', 'test']
-    for i, dataset in enumerate(datasets):
-        loggers.append(Logger(name=names[i], task_type=infer_task(datasets)))
-    return loggers
+    if cfg.dataset.format == "SBML_multi":
+        task = 'classification_binary'
+        return [
+            Logger(name="train", task_type=task),
+            Logger(name="val", task_type=task),
+            Logger(name="val-graph", task_type=task)
+        ]
+    else:  # default implementation
+        names = ['train', 'val', 'test']
+        for i, dataset in enumerate(datasets):
+            loggers.append(Logger(name=names[i], task_type=infer_task(datasets)))
+        return loggers

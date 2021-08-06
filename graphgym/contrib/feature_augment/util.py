@@ -131,18 +131,21 @@ def projection_wrap(augment_func):
     :param augment_func:
     :return:
     """
+    # wrapper for augment functions that operate on bipartite graph
     def wrapped(graph, **kwargs):
-        return augment_func(get_bip_proj_repr(graph), **kwargs)
+        # ↝ simple_wrap
+        # here, we always have fewer nodes; have to rely on downstream
+        # components to properly handle this
+        nodes_requested = graph.G.nodes
+        if cfg.dataset.graph_interpretation == "simple":
+            graph_to_use = get_bip_proj_cached(graph)
+        elif cfg.dataset.graph_interpretation == "bipartite_projection":
+            graph_to_use = graph
+        else:
+            raise NotImplementedError()
+        return augment_func(graph_to_use, nodes_requested=nodes_requested, **kwargs)
+
     return wrapped
-
-
-def get_simple_repr(graph):
-    if cfg.dataset.graph_interpretation == "simple":
-        return graph
-    elif cfg.dataset.graph_interpretation == "bipartite_projection":
-        return graph['simple_graph']  # TODO
-    else:
-        raise NotImplementedError()
 
 
 def simple_wrap(augment_func):
@@ -152,7 +155,20 @@ def simple_wrap(augment_func):
     :return:
     """
     def wrapped(graph, **kwargs):
-        return augment_func(get_simple_repr(graph), **kwargs)
+        if cfg.dataset.graph_interpretation == "simple":
+            graph_to_use = graph
+            # node indices for which we want to compute features
+            nodes_requested = graph.G.nodes
+        elif cfg.dataset.graph_interpretation == "bipartite_projection":
+            graph_to_use = graph['simple_graph']  # TODO
+            # in case we are given bip-proj as primary graph, compute only
+            # features in simple graph for nodes that will appear as nodes
+            # in the bipartite projection.
+            nodes_requested = get_non_rxn_nodes(graph.G)
+        else:
+            raise NotImplementedError()
+        return augment_func(graph_to_use, nodes_requested=nodes_requested, **kwargs)
+
     return wrapped
 
 

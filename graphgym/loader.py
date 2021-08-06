@@ -3,6 +3,7 @@ import time
 import logging
 import pickle
 
+from graphgym.contrib.train.SVM import get_external_split_graphs
 from graphgym.contrib.transform.normalize import normalize_scale, normalize_fit
 from sklearn.preprocessing import MinMaxScaler
 
@@ -264,16 +265,43 @@ def create_dataset():
 
 
 def create_loader(datasets):
-    loader_train = DataLoader(datasets[0], collate_fn=Batch.collate(),
-                              batch_size=cfg.train.batch_size, shuffle=True,
-                              num_workers=cfg.num_workers, pin_memory=False)
+    # datasets is python list of GraphDataset, the i-th one containing *all* given graphs but with node_label and
+    # node_label_index corresponding to split i.
+    if cfg.dataset.format == "SBML_multi":
+        # consider explicit external split
+        train_graphs, test_graphs, val_graphs = get_external_split_graphs(datasets)
 
-    loaders = [loader_train]
-    for i in range(1, len(datasets)):
-        loaders.append(DataLoader(datasets[i], collate_fn=Batch.collate(),
-                                  batch_size=cfg.train.batch_size,
-                                  shuffle=False,
-                                  num_workers=cfg.num_workers,
-                                  pin_memory=False))
+        # TODO does this also properly handle internal splits? i think not
+        loader_train = DataLoader(train_graphs, collate_fn=Batch.collate(),
+                                  batch_size=cfg.train.batch_size, shuffle=True,
+                                  num_workers=cfg.num_workers, pin_memory=False)
 
-    return loaders
+        loader_test = DataLoader(test_graphs, collate_fn=Batch.collate(),
+                                 batch_size=cfg.train.batch_size,
+                                 shuffle=False,
+                                 num_workers=cfg.num_workers,
+                                 pin_memory=False)
+
+        loader_val = DataLoader(val_graphs, collate_fn=Batch.collate(),
+                                batch_size=cfg.train.batch_size,
+                                shuffle=False,
+                                num_workers=cfg.num_workers,
+                                pin_memory=False)
+
+        return [loader_train, loader_test, loader_val]
+    else:
+        # default behaviour
+        loader_train = DataLoader(datasets[0], collate_fn=Batch.collate(),
+                                  batch_size=cfg.train.batch_size, shuffle=True,
+                                  num_workers=cfg.num_workers, pin_memory=False)
+
+        loaders = [loader_train]
+        for i in range(1, len(datasets)):
+            loaders.append(DataLoader(datasets[i], collate_fn=Batch.collate(),
+                                      batch_size=cfg.train.batch_size,
+                                      shuffle=False,
+                                      num_workers=cfg.num_workers,
+                                      pin_memory=False))
+
+        return loaders
+

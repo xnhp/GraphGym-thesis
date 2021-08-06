@@ -65,6 +65,17 @@ def save_labels(tens: torch.Tensor, filename, out_dir):
     # previous approach:
     # torch.save(Y_train, os.path.join(logger_train.out_dir, 'Y_train.pt'))
 
+def get_external_split_graphs(datasets):
+    # these are the graphs in external train split, with node idx for internal train/test split
+    # is_train / is_test attributes are being set by loader based on what is specified in config yaml
+    # internal train/test split is reflected in datasets[0] and datasets[1], the is_train flag
+    # describes the external train/test split (TODO rename)
+    train_graphs = [graph for graph in datasets[0].graphs if graph['is_train']]
+    test_graphs = [graph for graph in datasets[1].graphs if graph['is_train']]
+    # these are the graphs in the external test split. here, we want to consider the entire graph.
+    val_graphs = collect_val_graphs(datasets)
+    return train_graphs, test_graphs, val_graphs
+
 
 def run_svm(loggers, loaders, model, optimizer, scheduler, datasets):
     # batch_train and batch_test contain *all* given graphs, each of these having a resp. node_label_index mask
@@ -91,13 +102,7 @@ def run_svm(loggers, loaders, model, optimizer, scheduler, datasets):
     #   of these graphs has node_label_index set according to internal split
     # So, to recover the external (explicitly given) split, we have to do our own thing.
 
-    # these are the graphs in external train split, with node idx for internal train/test split
-    # is_train / is_test attributes are being set by loader based on what is specified in config yaml
-    train_graphs = [graph for graph in datasets[0].graphs if graph['is_train']]
-    test_graphs = [graph for graph in datasets[1].graphs if graph['is_train']]
-
-    # these are the graphs in the external test split. here, we want to consider the entire graph.
-    val_graphs_full = collect_val_graphs(datasets)
+    train_graphs, test_graphs, val_graphs = get_external_split_graphs(datasets)
 
     # to feed this into a generic ML model, we need to collect and concat/stack all the features and labels from the
     #   resp. graphs in there
@@ -112,7 +117,7 @@ def run_svm(loggers, loaders, model, optimizer, scheduler, datasets):
     X_train, Y_train = collect_across_graphs(train_graphs)
     X_test, Y_test = collect_across_graphs(test_graphs)
     # internal "split" will point to *all* nodes
-    X_val, Y_val = collect_across_graphs(val_graphs_full)  # no internal split (all nodes)
+    X_val, Y_val = collect_across_graphs(val_graphs)  # no internal split (all nodes)
 
     # train ("fit") SVM model
     rbf_svc = svm.SVC(

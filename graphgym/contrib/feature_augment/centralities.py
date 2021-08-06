@@ -1,6 +1,7 @@
 import igraph
 import networkx as nx
 import numpy
+import numpy as np
 
 from graphgym.register import register_feature_augment
 from graphgym.contrib.feature_augment.util import bfs_accumulate, compute_stats, get_igraph_cached
@@ -9,24 +10,47 @@ from pytictoc import TicToc
 from sklearn.utils import check_array
 
 
-def betweenness_impl(graph):
+def degree_fun(graph, **kwargs):
+    return [deg for (node, deg) in graph.G.degree(kwargs['nodes_requested'])]
+register_feature_augment('node_degree', degree_fun)
+
+
+def betweenness_centr_igraph(graph, **kwargs):
+    return betweenness_impl(graph, **kwargs)
+register_feature_augment('node_betweenness_centrality', betweenness_centr_igraph)
+
+
+def closeness_centr_func(graph, **kwargs):
+    t = TicToc()
+    t.tic()
+    r = closeness_impl(graph, **kwargs)
+    t.toc("Whole-graph closeness centralities")
+    return r
+register_feature_augment('node_closeness_centrality', closeness_centr_func)
+
+
+def eigenvector_centr_func(graph, **kwargs):
+    t = TicToc()
+    t.tic()
+    r = np.array(list(eigenvector_impl(graph).values()))[kwargs['nodes_requested']]
+    t.toc("Whole-graph eigenvector centrality")
+    return r
+register_feature_augment('node_eigenvector_centrality', eigenvector_centr_func)
+
+
+def betweenness_impl(graph, **kwargs):
     iG = get_igraph_cached(graph)
     return iG.betweenness(
-        vertices=None,  # defaults to all vertices
+        vertices=kwargs['nodes_requested'],  # defaults to all vertices
         directed=False
     )
 
 
-def betweenness_centr_igraph(graph, **kwargs):
-    return betweenness_impl(graph)
 
 
-register_feature_augment('node_betweenness_centrality', betweenness_centr_igraph)
-
-
-def closeness_impl(graph):
+def closeness_impl(graph, **kwargs):
     iG = get_igraph_cached(graph)
-    r = iG.closeness(vertices=None, mode="all", normalized=True)
+    r = iG.closeness(vertices=kwargs['nodes_requested'], mode="all", normalized=True)
     npr = numpy.array(r)
     # impl. yields NaN for isolated nodes, replace with 0
     npr = numpy.nan_to_num(npr, nan=0.0, copy=False)
@@ -37,26 +61,10 @@ def closeness_impl(graph):
     return list(npr)
 
 
-def closeness_centr_func(graph, **kwargs):
-    t = TicToc()
-    t.tic()
-    r = closeness_impl(graph)
-    t.toc("Whole-graph closeness centralities")
-    return r
+def eigenvector_impl(graph):
+    return nx.algorithms.centrality.eigenvector_centrality_numpy(graph.G, max_iter=300)
 
 
-register_feature_augment('node_closeness_centrality', closeness_centr_func)
-
-
-def eigenvector_centr_func(graph, **kwargs):
-    t = TicToc()
-    t.tic()
-    r = list(nx.algorithms.centrality.eigenvector_centrality_numpy(graph.G, max_iter=300).values())
-    t.toc("Whole-graph eigenvector centrality")
-    return r
-
-
-register_feature_augment('node_eigenvector_centrality', eigenvector_centr_func)
 
 
 def ego_graphs_incr(g, source, radii):
@@ -96,7 +104,7 @@ def ego_centrality_func(graph, **kwargs):
     feats = []
     nxG = graph.G
     radii = [3, 5]
-    for node in nxG.nodes:
+    for node in kwargs['nodes_requested']:
         # t = TicToc()
         # t.tic()
         egoGs = ego_graphs_incr(nxG, node, radii)
@@ -135,8 +143,6 @@ def ego_centrality_func(graph, **kwargs):
 register_feature_augment('node_ego_centralities', ego_centrality_func)
 
 
-def eigenvector_impl(graph):
-    return nx.algorithms.centrality.eigenvector_centrality_numpy(graph.G, max_iter=300)
 
 
 def neighbour_centrality_statistics_func(graph, **kwargs):
@@ -148,23 +154,23 @@ def neighbour_centrality_statistics_func(graph, **kwargs):
     t.tic()
     feats = []
     # compute all centralities
-    betweenness = betweenness_impl(graph)
+    betweenness = betweenness_impl(graph, nodes_requested=graph.G.nodes)
     t.toc("betweeness centrality (igraph, whole graph)", restart=True)
     degree = (nx.degree_centrality(nxG))
     t.toc("degree centrality (nx, whole graph)", restart=True)
-    closeness = closeness_impl(graph)
+    closeness = closeness_impl(graph, nodes_requested=graph.G.nodes)
     t.toc("closeness centrality (igraph, whole graph)", restart=True)
     eigenvector = eigenvector_impl(graph)
     t.toc("eigenvector centrality (nx, whole graph)", restart=True)
     # then, for each neighbourhood, fetch and aggregate according centrs
-    for node in nxG.nodes:
+    for node in kwargs['nodes_requested']:
         neighbs = list(nxG.neighbors(node))
         b = compute_stats([betweenness[neighb] for neighb in neighbs])
         d = compute_stats([degree[neighb] for neighb in neighbs])
         c = compute_stats([closeness[neighb] for neighb in neighbs])
         e = compute_stats([eigenvector[neighb] for neighb in neighbs])
         feats.append(b + c + d + e)
-    assert len(feats) == len(nxG.nodes)
+    assert len(feats) == len(kwargs['nodes_requested'])
     t.toc("Computed neighbour centrality statistics")
     return feats
 

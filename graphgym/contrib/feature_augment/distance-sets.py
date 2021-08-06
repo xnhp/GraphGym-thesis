@@ -11,6 +11,7 @@ def distance_set_sz_func(graph, **kwargs):
     ↝ [[speed up computation of ego_centralities]]
     :param graph:
     :param kwargs:
+        - nodes_requested: node ids for which to compute this feature (will still consider entire graph structure)
     :return:
     """
 
@@ -24,7 +25,7 @@ def distance_set_sz_func(graph, **kwargs):
     t = TicToc()
     t.tic()
     # actual feature values
-    abs_sz = [bfs_accumulate(graph.G, node, 5, acc_nodes_at_dist, []) for node in graph.G.nodes]
+    abs_sz = [bfs_accumulate(graph.G, node, 5, acc_nodes_at_dist, []) for node in kwargs['nodes_requested']]
     # each element is a list of distance set sizes for resp. distance 1-5
     norms = [4, 8, 12, 16, 20]   # ↝ nielsen
 
