@@ -1,0 +1,171 @@
+GPU Mem: [37]
+GPU Prob: [1.]
+Random select GPU, select GPU 0 with mem: 37
+Load: 1.929s, Before split: 5.282s, Split: 0.000998s, After split: 2.826s
+GNN(
+  (preprocess): Preprocess(
+    node_degree: dim_out=1
+    node_degree_projection: dim_out=1
+    node_clustering_coefficient: dim_out=1
+    node_betweenness_centrality: dim_out=1
+    node_betweenness_centrality_projection: dim_out=1
+    node_closeness_centrality: dim_out=1
+    node_closeness_centrality_projection: dim_out=1
+    node_eigenvector_centrality: dim_out=1
+    node_eigenvector_centrality_projection: dim_out=1
+    node_neighbour_centrality_statistics: dim_out=16
+    node_neighbour_centrality_statistics_projection: dim_out=16
+    node_distance_set_size: dim_out=9
+    node_distance_set_size_projection: dim_out=9
+    node_class_onehot: dim_out=10
+    node_feature: dim_out=1
+    Total: dim_out=70
+  )
+  (mp): GNNStackStage(
+    (layer0): GeneralLayer(
+      (layer): GeneralConv(
+        (model): GeneralConvLayer(70, 16)
+      )
+      (post_layer): Sequential(
+        (0): BatchNorm1d(16, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        (1): ReLU()
+      )
+    )
+    (layer1): GeneralLayer(
+      (layer): GeneralConv(
+        (model): GeneralConvLayer(16, 16)
+      )
+      (post_layer): Sequential(
+        (0): BatchNorm1d(16, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        (1): ReLU()
+      )
+    )
+  )
+  (post_mp): GNNNodeHead(
+    (layer_post_mp): MLP(
+      (model): Sequential(
+        (0): Linear(
+          (model): Linear(in_features=16, out_features=1, bias=True)
+        )
+      )
+    )
+  )
+)
+bn:
+  eps: 1e-05
+  mom: 0.1
+cfg_dest: config.yaml
+dataset:
+  augment_feature: ['node_degree', 'node_degree_projection', 'node_clustering_coefficient', 'node_betweenness_centrality', 'node_betweenness_centrality_projection', 'node_closeness_centrality', 'node_closeness_centrality_projection', 'node_eigenvector_centrality', 'node_eigenvector_centrality_projection', 'node_neighbour_centrality_statistics', 'node_neighbour_centrality_statistics_projection', 'node_distance_set_size', 'node_distance_set_size_projection', 'node_class_onehot']
+  augment_feature_dims: [1, 1, 1, 1, 1, 1, 1, 1, 1, 16, 16, 9, 9, 10]
+  augment_feature_repr: original
+  augment_label: 
+  augment_label_dims: 0
+  cache_load: False
+  cache_save: False
+  dir: ./datasets
+  edge_dim: 128
+  edge_encoder: False
+  edge_encoder_bn: True
+  edge_encoder_name: Bond
+  edge_message_ratio: 0.8
+  edge_negative_sampling_ratio: 1.0
+  edge_train_mode: all
+  encoder_dim: 128
+  exclude_complex_species: True
+  feat_cache: enabled
+  format: SBML_multi
+  graph_interpretation: simple
+  name: Cora
+  node_encoder: False
+  node_encoder_bn: True
+  node_encoder_name: Atom
+  normalize_feats: ['node_degree', 'node_degree_projection', 'node_clustering_coefficient', 'node_betweenness_centrality', 'node_betweenness_centrality_projection', 'node_ego_centralities', 'node_ego_centralities_projection', 'node_closeness_centrality', 'node_closeness_centrality_projection', 'node_eigenvector_centrality', 'node_eigenvector_centrality_projection', 'node_neighbour_centrality_statistics', 'node_neighbour_centrality_statistics_projection', 'node_distance_set_size', 'node_distance_set_size_projection']
+  possible_classes: ['PROTEIN', 'reaction', 'RNA', 'DEGRADED', 'UNKNOWN', 'SIMPLE_MOLECULE', 'ION', 'GENE', 'PHENOTYPE', 'DRUG']
+  remove_feature: False
+  resample_disjoint: False
+  shuffle_split: True
+  split: [0.99, 0.01]
+  task: node
+  task_type: classification
+  test_names: ['ReconMapOlder']
+  train_names: ['AlzPathway', 'PDMap']
+  transductive: True
+  transform: normalize
+  tu_simple: True
+device: cuda:0
+example_arg: example
+example_group:
+  example_arg: example
+gnn:
+  act: relu
+  agg: add
+  att_final_linear: False
+  att_final_linear_bn: False
+  att_heads: 1
+  batchnorm: True
+  dim_inner: 16
+  dropout: 0.0
+  keep_edge: 0.5
+  l2norm: True
+  layer_type: generalconv
+  layers_mp: 2
+  layers_post_mp: 1
+  layers_pre_mp: 0
+  msg_direction: single
+  normalize_adj: False
+  self_msg: none
+  skip_every: 1
+  stage_type: stack
+gpu_mem: False
+mem:
+  inplace: False
+metric_agg: argmax
+metric_best: auto
+model:
+  class_weights: 3
+  edge_decoding: dot
+  graph_pooling: add
+  loss_fun: cross_entropy
+  match_upper: True
+  size_average: mean
+  svm_cost: 10.0
+  svm_gamma: 0.1
+  svm_kernel: rbf
+  thresh: 0.5
+  type: gnn
+num_threads: 6
+num_workers: 0
+optim:
+  base_lr: 0.01
+  lr_decay: 0.1
+  max_epoch: 200
+  momentum: 0.9
+  optimizer: adam
+  scheduler: cos
+  steps: [30, 60, 90]
+  weight_decay: 0.0005
+out_dir: generated-configs\config_grid_grid\config-mode=run_svm-C=10.0-gamma=0.1-weights=3\1
+print: both
+round: 4
+seed: 1
+tensorboard_agg: True
+tensorboard_each_run: False
+train:
+  auto_resume: False
+  batch_size: 16
+  ckpt_clean: True
+  ckpt_period: 100
+  epoch_resume: -1
+  eval_period: 10
+  mode: run_svm
+  node_per_graph: 32
+  radius: extend
+  sample_node: False
+val:
+  node_per_graph: 32
+  radius: extend
+  sample_node: False
+view_emb: False
+Num parameters: 1457
+Results aggregated across runs saved in generated-configs\config_grid_grid\config-mode=run_svm-C=10.0-gamma=0.1-weights=3\agg

@@ -1,0 +1,188 @@
+bn:
+  eps: 1.0e-05
+  mom: 0.1
+cfg_dest: config.yaml
+dataset:
+  augment_feature:
+  - node_degree
+  - node_degree_projection
+  - node_clustering_coefficient
+  - node_betweenness_centrality
+  - node_betweenness_centrality_projection
+  - node_closeness_centrality
+  - node_closeness_centrality_projection
+  - node_eigenvector_centrality
+  - node_eigenvector_centrality_projection
+  - node_neighbour_centrality_statistics
+  - node_neighbour_centrality_statistics_projection
+  - node_distance_set_size
+  - node_distance_set_size_projection
+  - node_class_onehot
+  augment_feature_dims:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+  - 10
+  - 11
+  - 12
+  - 13
+  - 14
+  - 15
+  - 16
+  - 17
+  - 18
+  - 19
+  - 20
+  - 21
+  - 22
+  - 23
+  - 24
+  - 25
+  augment_feature_repr: original
+  augment_label: ''
+  augment_label_dims: 0
+  cache_load: false
+  cache_save: false
+  dir: ./datasets
+  edge_dim: 128
+  edge_encoder: false
+  edge_encoder_bn: true
+  edge_encoder_name: Bond
+  edge_message_ratio: 0.8
+  edge_negative_sampling_ratio: 1.0
+  edge_train_mode: all
+  encoder_dim: 128
+  exclude_complex_species: true
+  feat_cache: enabled
+  format: SBML_multi
+  graph_interpretation: simple
+  name: Cora
+  node_encoder: false
+  node_encoder_bn: true
+  node_encoder_name: Atom
+  normalize_feats:
+  - node_degree
+  - node_degree_projection
+  - node_clustering_coefficient
+  - node_betweenness_centrality
+  - node_betweenness_centrality_projection
+  - node_ego_centralities
+  - node_ego_centralities_projection
+  - node_closeness_centrality
+  - node_closeness_centrality_projection
+  - node_eigenvector_centrality
+  - node_eigenvector_centrality_projection
+  - node_neighbour_centrality_statistics
+  - node_neighbour_centrality_statistics_projection
+  - node_distance_set_size
+  - node_distance_set_size_projection
+  possible_classes:
+  - PROTEIN
+  - reaction
+  - RNA
+  - DEGRADED
+  - UNKNOWN
+  - SIMPLE_MOLECULE
+  - ION
+  - GENE
+  - PHENOTYPE
+  - DRUG
+  remove_feature: false
+  resample_disjoint: false
+  shuffle_split: true
+  split:
+  - 0.99
+  - 0.01
+  task: node
+  task_type: classification
+  test_names:
+  - ReconMapOlder
+  train_names:
+  - AlzPathway
+  - PDMap
+  transductive: true
+  transform: normalize
+  tu_simple: true
+device: auto
+example_arg: example
+example_group:
+  example_arg: example
+gnn:
+  act: relu
+  agg: add
+  att_final_linear: false
+  att_final_linear_bn: false
+  att_heads: 1
+  batchnorm: true
+  dim_inner: 16
+  dropout: 0.0
+  keep_edge: 0.5
+  l2norm: true
+  layer_type: generalconv
+  layers_mp: 2
+  layers_post_mp: 1
+  layers_pre_mp: 0
+  msg_direction: single
+  normalize_adj: false
+  self_msg: none
+  skip_every: 1
+  stage_type: stack
+gpu_mem: false
+mem:
+  inplace: false
+metric_agg: argmax
+metric_best: auto
+model:
+  class_weights: 10
+  edge_decoding: dot
+  graph_pooling: add
+  loss_fun: cross_entropy
+  match_upper: true
+  size_average: mean
+  svm_cost: 1.0
+  svm_gamma: 1.0
+  svm_kernel: rbf
+  thresh: 0.5
+  type: gnn
+num_threads: 6
+num_workers: 0
+optim:
+  base_lr: 0.01
+  lr_decay: 0.1
+  max_epoch: 200
+  momentum: 0.9
+  optimizer: adam
+  scheduler: cos
+  steps:
+  - 30
+  - 60
+  - 90
+  weight_decay: 0.0005
+out_dir: generated-configs\config_grid_grid\config-mode=run_svm-C=1.0-gamma=1.0-weights=10\1
+print: both
+round: 4
+seed: 1
+tensorboard_agg: true
+tensorboard_each_run: false
+train:
+  auto_resume: false
+  batch_size: 16
+  ckpt_clean: true
+  ckpt_period: 100
+  epoch_resume: -1
+  eval_period: 10
+  mode: run_svm
+  node_per_graph: 32
+  radius: extend
+  sample_node: false
+val:
+  node_per_graph: 32
+  radius: extend
+  sample_node: false
+view_emb: false
