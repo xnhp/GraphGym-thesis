@@ -12,6 +12,8 @@ def string_to_python(string):
 
 
 def dict_to_json(dict, fname):
+    # TODO keep file handle open? or generally a better approach
+    #   for logging with high frequency?
     with open(fname, 'a') as f:
         json.dump(dict, f)
         f.write('\n')

@@ -1,9 +1,7 @@
-import os
-
+from graphgym.contrib.train.util import save_labels
 from graphgym.logger import Logger
 
 import deepsnap.graph
-import pandas as pd
 import torch
 from graphgym.config import cfg
 from graphgym.contrib.feature_augment.util import get_non_rxn_nodes, tens_intersect, collect_feature_augment
@@ -58,12 +56,6 @@ def collect_across_graphs(graphs:list[deepsnap.graph.Graph]):
     labels = torch.cat([x[1] for x in l], dim=0)
     return feats, labels
 
-
-def save_labels(tens: torch.Tensor, filename, out_dir):
-    df = pd.DataFrame(tens.numpy())
-    df.to_csv(os.path.join(out_dir, filename + ".csv"))
-    # previous approach:
-    # torch.save(Y_train, os.path.join(logger_train.out_dir, 'Y_train.pt'))
 
 def get_external_split_graphs(datasets):
     # these are the graphs in external train split, with node idx for internal train/test split
