@@ -1,0 +1,22 @@
+# Format for each row: name in config.py; alias; range to search
+# No spaces, except between these 3 fields
+# Line breaks are used to union different grid search spaces
+# Feel free to add '#' to add comments
+
+
+# as given by [[you_design_2020]] table 1 ("condensed GNN design space")
+# (should be 96 configs)
+gnn.act act ['prelu']
+gnn.batchnorm bn [True]
+gnn.dropout do [0.0]
+gnn.agg agg ['add','mean','max']
+gnn.layers_mp mp [2,4,6,8]
+gnn.layers_pre_mp pre_mp [1,2]
+gnn.layers_post_mp post_mp [2,3]
+gnn.stage_type stage ['skipsum','skipconcat']
+train.batch_size batch_sz [32]
+optim.base_lr lr [0.01]
+optim.optimizer optim ['adam']
+optim.max_epoch epoch [400]
+
+# gnn.act act ['prelu','relu']

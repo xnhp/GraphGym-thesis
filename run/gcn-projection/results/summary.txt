@@ -1,0 +1,71 @@
+Models used for training (internal):
+Model: AlzPathway (CellDesignerModel) at C:\Users\Ben\Uni\BA-Thesis\data\alzpathway\CellDesigner SBML\12918_2012_896_MOESM1_ESM.xml
+Number of species: 1361
+... with duplicate aliases: 251
+Number of reactions: 1015
+... without `id` attribute: 0
+Number of nodes: 1365... with degree >= 2: 1077
+... with duplicate label (positive class) (after preproc):  126
+
+Model: PDMap (CellDesignerModel) at C:\Users\Ben\Uni\BA-Thesis\data\pd_map_spring_18\PD_180412_2.xml
+Number of species: 2606
+... with duplicate aliases: 492
+Number of reactions: 2416
+... without `id` attribute: 0
+Number of nodes: 3590... with degree >= 2: 3021
+... with duplicate label (positive class) (after preproc):  332
+
+Models used for validation (external):
+Model: ReconMapOlder (CellDesignerModel) at C:\Users\Ben\Uni\BA-Thesis\data\ReconMap\ReconMap-2.01\ReconMap-2.01.xml
+Number of species: 4030
+... with duplicate aliases: 743
+Number of reactions: 5535
+... without `id` attribute: 1
+Number of nodes: 8619... with degree >= 2: 8379
+... with duplicate label (positive class) (after preproc):  741
+
+top 5 models on internal train split by auc
+	config-gnn-act=prelu-bn=True-do=0.0-agg=max-mp=2-pre_mp=1-post_mp=3-stage=skipsum-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.5937
+	config-gnn-act=prelu-bn=True-do=0.0-agg=max-mp=4-pre_mp=2-post_mp=3-stage=skipsum-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.5855
+	config-gnn-act=prelu-bn=True-do=0.0-agg=add-mp=6-pre_mp=2-post_mp=3-stage=skipconcat-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.5829
+	config-gnn-act=prelu-bn=True-do=0.0-agg=add-mp=6-pre_mp=2-post_mp=2-stage=skipconcat-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.5803
+	config-gnn-act=prelu-bn=True-do=0.0-agg=add-mp=6-pre_mp=2-post_mp=3-stage=skipsum-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.579
+top 5 models on internal test/validate split by auc
+	config-gnn-act=prelu-bn=True-do=0.0-agg=max-mp=6-pre_mp=2-post_mp=2-stage=skipsum-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.8571
+	config-gnn-act=prelu-bn=True-do=0.0-agg=max-mp=6-pre_mp=1-post_mp=2-stage=skipsum-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.8036
+	config-gnn-act=prelu-bn=True-do=0.0-agg=max-mp=4-pre_mp=1-post_mp=2-stage=skipconcat-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.75
+	config-gnn-act=prelu-bn=True-do=0.0-agg=add-mp=4-pre_mp=2-post_mp=2-stage=skipsum-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.7143
+	config-gnn-act=prelu-bn=True-do=0.0-agg=add-mp=8-pre_mp=2-post_mp=2-stage=skipsum-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.7143
+top 5 models on external test/validate split by auc
+	config-gnn-act=prelu-bn=True-do=0.0-agg=add-mp=2-pre_mp=2-post_mp=2-stage=skipconcat-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.7726
+	config-gnn-act=prelu-bn=True-do=0.0-agg=max-mp=6-pre_mp=2-post_mp=2-stage=skipconcat-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.7134
+	config-gnn-act=prelu-bn=True-do=0.0-agg=max-mp=8-pre_mp=2-post_mp=3-stage=skipconcat-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.7102
+	config-gnn-act=prelu-bn=True-do=0.0-agg=max-mp=6-pre_mp=2-post_mp=2-stage=skipsum-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.7022
+	config-gnn-act=prelu-bn=True-do=0.0-agg=max-mp=4-pre_mp=2-post_mp=2-stage=skipconcat-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.6985
+
+top 5 models on internal train split by accuracy
+	config-gnn-act=prelu-bn=True-do=0.0-agg=mean-mp=6-pre_mp=1-post_mp=2-stage=skipsum-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.6338
+	config-gnn-act=prelu-bn=True-do=0.0-agg=add-mp=2-pre_mp=2-post_mp=2-stage=skipsum-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.6249
+	config-gnn-act=prelu-bn=True-do=0.0-agg=add-mp=2-pre_mp=1-post_mp=3-stage=skipsum-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.6138
+	config-gnn-act=prelu-bn=True-do=0.0-agg=max-mp=2-pre_mp=1-post_mp=3-stage=skipsum-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.6108
+	config-gnn-act=prelu-bn=True-do=0.0-agg=max-mp=6-pre_mp=1-post_mp=2-stage=skipsum-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.6101
+top 5 models on internal test/validate split by accuracy
+	config-gnn-act=prelu-bn=True-do=0.0-agg=add-mp=2-pre_mp=1-post_mp=3-stage=skipconcat-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.6
+	config-gnn-act=prelu-bn=True-do=0.0-agg=add-mp=2-pre_mp=2-post_mp=3-stage=skipsum-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.6
+	config-gnn-act=prelu-bn=True-do=0.0-agg=add-mp=4-pre_mp=1-post_mp=2-stage=skipsum-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.6
+	config-gnn-act=prelu-bn=True-do=0.0-agg=add-mp=4-pre_mp=1-post_mp=3-stage=skipsum-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.6
+	config-gnn-act=prelu-bn=True-do=0.0-agg=add-mp=8-pre_mp=1-post_mp=3-stage=skipsum-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.6
+top 5 models on external test/validate split by accuracy
+	config-gnn-act=prelu-bn=True-do=0.0-agg=add-mp=2-pre_mp=1-post_mp=2-stage=skipsum-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.7601
+	config-gnn-act=prelu-bn=True-do=0.0-agg=add-mp=2-pre_mp=1-post_mp=3-stage=skipsum-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.7601
+	config-gnn-act=prelu-bn=True-do=0.0-agg=add-mp=2-pre_mp=2-post_mp=3-stage=skipconcat-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.7601
+	config-gnn-act=prelu-bn=True-do=0.0-agg=add-mp=2-pre_mp=2-post_mp=3-stage=skipsum-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.7601
+	config-gnn-act=prelu-bn=True-do=0.0-agg=add-mp=6-pre_mp=2-post_mp=2-stage=skipsum-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.7601
+
+info on fav mdl: config-gnn-act=prelu-bn=True-do=0.0-agg=add-mp=2-pre_mp=2-post_mp=2-stage=skipconcat-batch_sz=32-lr=0.01-optim=adam-epoch=400
+FPR at TPR cutoffs: 
+	0.25:	 0.550
+	0.50:	 0.799
+	0.75:	 0.987
+
+ (see folder for plots)
