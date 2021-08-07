@@ -1,8 +1,11 @@
+import os
+
 import torch
 import time
 import logging
 
 from graphgym.config import cfg
+from graphgym.contrib.train.util import save_labels
 from graphgym.loss import compute_loss
 from graphgym.utils.epoch import is_eval_epoch, is_ckpt_epoch
 from graphgym.checkpoint import load_ckpt, save_ckpt, clean_ckpt
@@ -44,6 +47,19 @@ def eval_epoch(logger, loader, model):
                             params=cfg.params)
         time_start = time.time()
 
+@torch.no_grad()
+def write_predictions_for_all_splits(model, loaders, loggers, epoch):
+    # assume only single batch in loader, else we have to approach this differently
+    names = ['train', 'test', 'val']  # ↝ compare-models.get_prediction_and_truth
+    for loader, logger, name in zip(loaders, loggers, names):
+        assert len(loader) == 1
+        for batch in loader:
+            batch.to(torch.device(cfg.device))
+            pred, true = model(batch)
+            loss, pred_score = compute_loss(pred, true)
+            targetdir = os.path.join(logger.out_dir, "preds", str(epoch))
+            save_labels(true.cpu(), "Y_" + name, targetdir)
+            save_labels(pred_score.cpu(), 'pred_' + name, targetdir)
 
 def train(loggers, loaders, model, optimizer, scheduler):
     start_epoch = 0
@@ -65,6 +81,7 @@ def train(loggers, loaders, model, optimizer, scheduler):
             for i in range(1, num_splits):
                 eval_epoch(loggers[i], loaders[i], model)
                 loggers[i].write_epoch(cur_epoch)
+            write_predictions_for_all_splits(model, loaders, loggers, cur_epoch)
         if is_ckpt_epoch(cur_epoch):
             save_ckpt(model, optimizer, scheduler, cur_epoch)
     for logger in loggers:

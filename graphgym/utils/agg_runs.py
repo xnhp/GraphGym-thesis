@@ -74,7 +74,7 @@ def agg_runs(dir, metric_best='auto'):
         if is_seed(seed):
             dir_seed = os.path.join(dir, seed)
 
-            split = 'val'
+            split = 'val-graph'
             if split in os.listdir(dir_seed):
                 dir_split = os.path.join(dir_seed, split)
                 fname_stats = os.path.join(dir_split, 'stats.json')
