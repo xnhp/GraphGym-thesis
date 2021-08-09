@@ -8,13 +8,15 @@ gnn:
   act: prelu
   batchnorm: True
   dropout: 0.0
-  agg: max
-  layers_pre_mp: 1
+  agg: add
   layers_mp: 2
-  layers_post_mp: 3
+  layers_pre_mp: 2
+  layers_post_mp: 2
+  # TODO try smaller values for below?
   dim_inner: 256
-  normalize_adj: False
   stage_type: 'skipsum'
+  # TODO try True for below?
+  normalize_adj: False
 train:
   batch_size: 32
 optim:

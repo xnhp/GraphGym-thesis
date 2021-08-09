@@ -6,6 +6,7 @@
 
 # as given by [[you_design_2020]] table 1 ("condensed GNN design space")
 # (should be 96 configs)
+# rerun this because we changed the way predictions are written to results
 gnn.act act ['prelu']
 gnn.batchnorm bn [True]
 gnn.dropout do [0.0]
@@ -19,4 +20,8 @@ optim.base_lr lr [0.01]
 optim.optimizer optim ['adam']
 optim.max_epoch epoch [400]
 
-# gnn.act act ['prelu','relu']
+# while we're on it, additionally tests some other variations
+# base config is set to params of best performing model of previous run
+gnn.dim_inner dim_inner [16,64,128,256]
+
+gnn.normalize_adj normalize [True]

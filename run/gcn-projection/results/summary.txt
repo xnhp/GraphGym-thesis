@@ -40,8 +40,8 @@ top 5 models on external test/validate split by auc
 	config-gnn-act=prelu-bn=True-do=0.0-agg=add-mp=2-pre_mp=2-post_mp=2-stage=skipconcat-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.7726
 	config-gnn-act=prelu-bn=True-do=0.0-agg=max-mp=6-pre_mp=2-post_mp=2-stage=skipconcat-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.7134
 	config-gnn-act=prelu-bn=True-do=0.0-agg=max-mp=8-pre_mp=2-post_mp=3-stage=skipconcat-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.7102
+	config-gnn-dim_inner=256:	 0.7102
 	config-gnn-act=prelu-bn=True-do=0.0-agg=max-mp=6-pre_mp=2-post_mp=2-stage=skipsum-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.7022
-	config-gnn-act=prelu-bn=True-do=0.0-agg=max-mp=4-pre_mp=2-post_mp=2-stage=skipconcat-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.6985
 
 top 5 models on internal train split by accuracy
 	config-gnn-act=prelu-bn=True-do=0.0-agg=mean-mp=6-pre_mp=1-post_mp=2-stage=skipsum-batch_sz=32-lr=0.01-optim=adam-epoch=400:	 0.6338
@@ -64,8 +64,8 @@ top 5 models on external test/validate split by accuracy
 
 info on fav mdl: config-gnn-act=prelu-bn=True-do=0.0-agg=add-mp=2-pre_mp=2-post_mp=2-stage=skipconcat-batch_sz=32-lr=0.01-optim=adam-epoch=400
 FPR at TPR cutoffs: 
-	0.25:	 0.550
-	0.50:	 0.799
-	0.75:	 0.987
+	0.25:	 0.004
+	0.50:	 0.044
+	0.75:	 0.386
 
  (see folder for plots)
