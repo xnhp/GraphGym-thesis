@@ -12,6 +12,7 @@ def onehot_attr(graph, key):
 
 
     attributes = nx.get_node_attributes(graph.G, key)
+    assert len(attributes) > 0
     possible_values = cfg.dataset.possible_classes
     def onehot_enc(value, possible_values):
         f = np.zeros(len(possible_values))

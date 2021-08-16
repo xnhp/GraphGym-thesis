@@ -4,8 +4,8 @@ from graphgym.register import register_config
 
 
 def set_cfg_dataset(cfg):
-    # If True, ignore all complex species during reading of the dataset
-    # This means these species will not appear in the graph.
+    # If true, complex species will be excluded from classification (but still appear
+    #   in the input graph relevant for feature computation, message-passing etc).
     cfg.dataset.exclude_complex_species = False
 
     # also see SBMLModel.min_node_degree
@@ -46,8 +46,10 @@ def set_cfg_dataset(cfg):
     #   (one-hot) encodings of these classes as features. We cannot infer these possible values
     #   from the input data since we may supply multiple graphs and we cannot depend on the range
     #   or order or consistency of values they provide.
+    # Could technically also sweep over all given graphs first to determine the overall range but this
+    #   is much simpler.
     cfg.dataset.possible_classes = ['PROTEIN', 'reaction', 'RNA', 'DEGRADED', 'UNKNOWN', 'SIMPLE_MOLECULE', 'ION',
-                                    'GENE', 'PHENOTYPE', 'DRUG']
+                                    'GENE', 'PHENOTYPE', 'DRUG', 'COMPLEX']
 
     # whether to interpret the graph as simple graph, heterogeneous graph, bipartite, ...
     # will affect how some attributes (e.g. node_type) are set and what concrete subclass

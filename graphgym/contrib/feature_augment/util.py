@@ -203,7 +203,8 @@ def split_rxn_nodes(graph: networkx.Graph):
                               lambda x: x[1] == 'reaction')
 
 
-def get_bip_proj_cached(graph):
+def get_bip_proj_cached(graph: deepsnap.graph.Graph):
+    # TODO this happens on dsG level but we also want to do the same on nxG level
     if graph['bipartite_projection'] is None:
         t = TicToc()
         t.tic()
@@ -225,6 +226,29 @@ def get_bip_proj_cached(graph):
     return graph['bipartite_projection']
 
 
+def get_simple_graph(nxG: networkx.Graph) -> networkx.Graph:
+    """
+    Given a graph constructed via pipeline that can either be a simple graph or a bipartite projection,
+    return its simple graph representation.
+    """
+    if nxG.graph['is_bipartite_projection']:
+        return nxG.graph['simple_graph']
+    else:
+        return nxG
+
+
+def get_interpretations(nxG: networkx.Graph) -> Tuple[networkx.Graph, networkx.Graph]:
+    is_proj = nxG.graph['is_bipartite_projection'] if 'is_bipartite_projection' in nxG.graph else False
+    if is_proj:
+        return nxG.graph['simple_graph'], nxG
+    else:
+        if 'bipartite_projection' in nxG.graph:
+            return nxG, nxG.graph['bipartite_projection']
+        else:
+            bipartite_projection, _ = bipartite_projection_onto_non_rxn(nxG)
+            nxG.graph['bipartite_projection'] = bipartite_projection
+            return nxG, nxG.graph['bipartite_projection']
+
 def bipartite_projection_onto_non_rxn(nxG: networkx.Graph) -> Tuple[networkx.Graph, list]:
     """
     :param nxG:
@@ -233,7 +257,14 @@ def bipartite_projection_onto_non_rxn(nxG: networkx.Graph) -> Tuple[networkx.Gra
         non-reaction nodes.
     """
     non_rxn_nodes = get_non_rxn_nodes(nxG)
-    assert min([deg for (node, deg) in nxG.degree]) > 0
+    # TODO
+    rxn_n, non_rxn_n = split_rxn_nodes(nxG)
+    rxn_ids = [n for n, _ in rxn_n]
+    rxn_degs_sorted = list(sorted(nxG.degree(rxn_ids), key=lambda x: x[1]))
+    rxn_degs = [d for _, d in rxn_degs_sorted]
+    assert min(rxn_degs) > 0
+    # allow isolated nodes
+    # assert min([deg for (node, deg) in nxG.degree]) > 0
     assert bipartite.is_bipartite_node_set(nxG, non_rxn_nodes)
     bipartite_projection = bipartite.projected_graph(nxG,
                                                      non_rxn_nodes)  # connected if common neighbour in rxn_nodes
