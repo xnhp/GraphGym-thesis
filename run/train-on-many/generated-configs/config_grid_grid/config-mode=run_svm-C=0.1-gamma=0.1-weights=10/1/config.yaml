@@ -93,6 +93,7 @@ dataset:
   - GENE
   - PHENOTYPE
   - DRUG
+  - COMPLEX
   remove_feature: false
   resample_disjoint: false
   shuffle_split: true

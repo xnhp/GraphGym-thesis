@@ -1,71 +1,50 @@
 Models used for training (internal):
-Model: AlzPathway (CellDesignerModel) at C:\Users\Ben\Uni\BA-Thesis\data\alzpathway\CellDesigner SBML\12918_2012_896_MOESM1_ESM.xml
-Number of species: 1361
-... with duplicate aliases: 251
-Number of reactions: 1015
-... without `id` attribute: 0
-Number of nodes: 1365... with degree >= 2: 1077
-... with duplicate label (positive class) (after preproc):  126
 
-Model: PDMap (CellDesignerModel) at C:\Users\Ben\Uni\BA-Thesis\data\pd_map_spring_18\PD_180412_2.xml
-Number of species: 2606
-... with duplicate aliases: 492
-Number of reactions: 2416
-... without `id` attribute: 0
-Number of nodes: 3590... with degree >= 2: 3021
-... with duplicate label (positive class) (after preproc):  332
 
 Models used for validation (external):
-Model: ReconMapOlder (CellDesignerModel) at C:\Users\Ben\Uni\BA-Thesis\data\ReconMap\ReconMap-2.01\ReconMap-2.01.xml
-Number of species: 4030
-... with duplicate aliases: 743
-Number of reactions: 5535
-... without `id` attribute: 1
-Number of nodes: 8619... with degree >= 2: 8379
-... with duplicate label (positive class) (after preproc):  741
 
 top 5 models on internal train split by auc
-	config-mode=run_svm-C=10.0-gamma=512.0-weights=3:	 0.975
-	config-mode=run_svm-C=100.0-gamma=512.0-weights=3:	 0.974
-	config-mode=run_svm-C=100.0-gamma=512.0-weights=5:	 0.9727
-	config-mode=run_svm-C=100.0-gamma=512.0-weights=10:	 0.9722
-	config-mode=run_svm-C=1.0-gamma=512.0-weights=3:	 0.969
+	config-mode=run_svm-C=10.0-gamma=512.0-weights=3:	 0.9999
+	config-mode=run_svm-C=1.0-gamma=512.0-weights=3:	 0.9993
+	config-mode=run_svm-C=1.0-gamma=512.0-weights=5:	 0.9993
+	config-mode=run_svm-C=1.0-gamma=512.0-weights=10:	 0.9991
+	config-mode=run_svm-C=10.0-gamma=512.0-weights=10:	 0.9987
 top 5 models on internal test/validate split by auc
-	config-mode=run_svm-C=10.0-gamma=0.1-weights=5:	 0.9455
-	config-mode=run_svm-C=1.0-gamma=8.0-weights=3:	 0.9091
-	config-mode=run_svm-C=10.0-gamma=1.0-weights=10:	 0.9091
-	config-mode=run_svm-C=100.0-gamma=1.0-weights=3:	 0.9091
-	config-mode=run_svm-C=0.1-gamma=1.0-weights=3:	 0.8909
+	config-mode=run_svm-C=1.0-gamma=8.0-weights=10:	 0.9238
+	config-mode=run_svm-C=1.0-gamma=0.1-weights=10:	 0.9208
+	config-mode=run_svm-C=0.1-gamma=1.0-weights=10:	 0.9179
+	config-mode=run_svm-C=1.0-gamma=1.0-weights=5:	 0.9179
+	config-mode=run_svm-C=1.0-gamma=8.0-weights=5:	 0.9179
 top 5 models on external test/validate split by auc
-	config-mode=run_svm-C=100.0-gamma=0.1-weights=5:	 0.8067
-	config-mode=run_svm-C=100.0-gamma=0.1-weights=10:	 0.7838
-	config-mode=run_svm-C=10.0-gamma=0.1-weights=10:	 0.7476
-	config-mode=run_svm-C=10.0-gamma=0.1-weights=5:	 0.7244
-	config-mode=run_svm-C=100.0-gamma=1.0-weights=3:	 0.7213
+	config-mode=run_svm-C=0.1-gamma=0.1-weights=3:	 0.8933
+	config-mode=run_svm-C=0.1-gamma=0.1-weights=5:	 0.8899
+	config-mode=run_svm-C=1.0-gamma=0.1-weights=3:	 0.883
+	config-mode=run_svm-C=0.1-gamma=0.1-weights=10:	 0.8824
+	config-mode=run_svm-C=1.0-gamma=0.1-weights=5:	 0.8731
 
 top 5 models on internal train split by accuracy
-	config-mode=run_svm-C=100.0-gamma=512.0-weights=3:	 0.9733
-	config-mode=run_svm-C=100.0-gamma=512.0-weights=5:	 0.9614
-	config-mode=run_svm-C=100.0-gamma=512.0-weights=10:	 0.957
-	config-mode=run_svm-C=10.0-gamma=512.0-weights=3:	 0.9547
-	config-mode=run_svm-C=10.0-gamma=512.0-weights=5:	 0.9525
+	config-mode=run_svm-C=10.0-gamma=512.0-weights=10:	 0.9995
+	config-mode=run_svm-C=10.0-gamma=512.0-weights=3:	 0.9995
+	config-mode=run_svm-C=10.0-gamma=512.0-weights=5:	 0.9995
+	config-mode=run_svm-C=1.0-gamma=512.0-weights=3:	 0.9985
+	config-mode=run_svm-C=0.1-gamma=512.0-weights=5:	 0.9977
 top 5 models on internal test/validate split by accuracy
-	config-mode=run_svm-C=0.1-gamma=512.0-weights=3:	 0.8125
-	config-mode=run_svm-C=1.0-gamma=512.0-weights=3:	 0.8125
-	config-mode=run_svm-C=100.0-gamma=512.0-weights=3:	 0.8125
-	config-mode=run_svm-C=10.0-gamma=512.0-weights=3:	 0.75
-	config-mode=run_svm-C=10.0-gamma=8.0-weights=3:	 0.75
+	config-mode=run_svm-C=0.1-gamma=8.0-weights=10:	 0.8571
+	config-mode=run_svm-C=1.0-gamma=8.0-weights=10:	 0.8571
+	config-mode=run_svm-C=1.0-gamma=0.1-weights=5:	 0.8333
+	config-mode=run_svm-C=1.0-gamma=8.0-weights=5:	 0.8333
+	config-mode=run_svm-C=10.0-gamma=1.0-weights=3:	 0.8333
 top 5 models on external test/validate split by accuracy
-	config-mode=run_svm-C=100.0-gamma=0.1-weights=10:	 0.8096
-	config-mode=run_svm-C=10.0-gamma=0.1-weights=5:	 0.798
-	config-mode=run_svm-C=0.1-gamma=0.1-weights=10:	 0.7601
-	config-mode=run_svm-C=0.1-gamma=0.1-weights=3:	 0.7601
-	config-mode=run_svm-C=0.1-gamma=0.1-weights=5:	 0.7601
+	config-mode=run_svm-C=0.1-gamma=0.1-weights=10:	 0.87
+	config-mode=run_svm-C=0.1-gamma=0.1-weights=5:	 0.8566
+	config-mode=run_svm-C=0.1-gamma=0.1-weights=3:	 0.8432
+	config-mode=run_svm-C=0.1-gamma=1.0-weights=3:	 0.8315
+	config-mode=run_svm-C=100.0-gamma=8.0-weights=5:	 0.831
 
-info on fav mdl: config-mode=run_svm-C=100.0-gamma=0.1-weights=5
+info on fav mdl: config-mode=run_svm-C=0.1-gamma=0.1-weights=3
 FPR at TPR cutoffs: 
-	0.25:	 0.003
-	0.50:	 0.041
-	0.75:	 0.303
+	0.25:	 0.011
+	0.50:	 0.027
+	0.75:	 0.120
 
  (see folder for plots)
