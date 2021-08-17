@@ -3,6 +3,7 @@ import networkx as nx
 from graphgym.register import register_feature_augment
 from pytictoc import TicToc
 from graphgym.contrib.feature_augment.util import bfs_accumulate, compute_stats
+import numpy as np
 
 
 def distance_set_sz_func(graph, **kwargs):
@@ -28,13 +29,10 @@ def distance_set_sz_func(graph, **kwargs):
     abs_sz = [bfs_accumulate(graph.G, node, 5, acc_nodes_at_dist, []) for node in kwargs['nodes_requested']]
     # each element is a list of distance set sizes for resp. distance 1-5
     norms = [4, 8, 12, 16, 20]   # ↝ nielsen
+    scaled_sz = [[np.tanh(sz / norm) for sz, norm in zip(sizes, norms)] for sizes in abs_sz]
 
-    feats = [
-        # additionally compute statistics
-        feat + compute_stats(feat) for feat in
-                # normalised feature values across different sizes
-                [[sz / norm for sz, norm in zip(sizes, norms)] for sizes in abs_sz]
-            ]
+    # additionally compute statistics
+    feats = [feat + compute_stats(feat) for feat in scaled_sz]
 
     t.toc("distance set sizes")
     return feats
