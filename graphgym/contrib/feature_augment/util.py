@@ -6,12 +6,15 @@ import networkx
 import numpy as np
 import torch
 from networkx.algorithms import bipartite
+from networkx.algorithms.connectivity.edge_kcomponents import _low_degree_nodes
 from pytictoc import TicToc
 from sklearn.utils import check_array
 
 import deepsnap
 import os
 from graphgym.config import cfg
+
+from data.models import SpeciesClass, SBMLModel
 
 
 def check_cache(key, graph_name):
@@ -159,6 +162,8 @@ def simple_wrap(augment_func):
 
     return wrapped
 
+def get_nodes_by_class(graph: networkx.Graph, requested_class: SpeciesClass):
+    return [n for n, c in graph.nodes(data='class') if c == requested_class.value]
 
 def get_non_rxn_nodes(graph: networkx.Graph):
     """
@@ -167,8 +172,28 @@ def get_non_rxn_nodes(graph: networkx.Graph):
         of the given graph. GG performs a relabelling on the networkx graph upon wrapping it in a deepsnap graph.
     ↝ SBMLModel#reactions
     """
-    return [node for (node, nodeclass) in graph.nodes(data='class') if nodeclass != 'reaction']
+    return [node for (node, nodeclass) in graph.nodes(data='class') if nodeclass != SpeciesClass.reaction.value]
 
+
+def get_prediction_nodes(dsG: deepsnap.graph.Graph) -> Tuple[np.array, np.array]:
+    """
+    Get indices of nodes to evaluate the prediction on. Motivation: Things like feature computation and message-passing
+    should be based on the entire graph but to improve model performance we can exclude some things from prediction
+    that we never want to duplicate anyways. Cf Nielsen et. al sec. 3.4
+    :param dsG:
+    :return:
+    """
+    # assume that node ids correspond to indices in deepsnap tensors ↝ deepsnap/graph.py:819
+    complex_to_exclude = get_nodes_by_class(dsG.G, SpeciesClass.complex) if cfg.dataset.exclude_complex_species else []
+    low_deg_to_exclude = list(_low_degree_nodes(dsG.G, SBMLModel.min_node_degree)) if cfg.dataset.exclude_low_degree else []
+    # node_label_index are ids of nodes appearing in this internal split
+
+    excluded = np.union1d(complex_to_exclude, low_deg_to_exclude)
+    included = np.setdiff1d(dsG.G.nodes, excluded)
+    return included, excluded
+
+    # not all may be present in node_label_index because of internal split?
+    # assert np.in1d(to_exclude, dsG.G['node_label_index'])
 
 def split_by_predicate(l, pred):
     yes = []
@@ -189,7 +214,7 @@ def split_rxn_nodes(graph: networkx.Graph):
     # ↝ data / util.py: 156
     # ↝ data/util.py:128
     return split_by_predicate(graph.nodes(data='class'),
-                              lambda x: x[1] == 'reaction')
+                              lambda x: x[1] == SpeciesClass.reaction.value)
 
 
 # cleanup
@@ -282,8 +307,9 @@ def tens_intersect(x: torch.Tensor, y: torch.Tensor):
 
 
 def collect_feature_augment(graph: deepsnap.graph.Graph):
+    # TODO can we call this in Preprocess.forward?
     """
-    Concat information from feature augments into node_feature tensor. Same as `Processing` module does in GNN models.
+    Concat information from feature augments into node_feature tensor. Same as `Preprocess` module does in GNN models.
     Considers only nodes that are not reactions because
     - we never want to duplicate reactions
     - bipartite projection and its node features do not contain reactions
@@ -295,6 +321,7 @@ def collect_feature_augment(graph: deepsnap.graph.Graph):
         check_array(graph[name])
 
     # ↝ graphgym.models.feature_augment.Preprocess.forward
+    # need to index here because tensors need to be of same size for torch.cat
     node_index = get_non_rxn_nodes(graph.G)
     return torch.cat(
         [graph[name][node_index].float() for name in cfg.dataset.augment_feature],

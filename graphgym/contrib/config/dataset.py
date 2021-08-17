@@ -2,13 +2,18 @@ from yacs.config import CfgNode as CN
 
 from graphgym.register import register_config
 
+from data.util import SpeciesClass
+
 
 def set_cfg_dataset(cfg):
     # If true, complex species will be excluded from classification (but still appear
     #   in the input graph relevant for feature computation, message-passing etc).
-    cfg.dataset.exclude_complex_species = False
+    cfg.dataset.exclude_complex_species = True
 
-    # also see SBMLModel.min_node_degree
+    # If true, low-degree nodes will be excluded from classification (but still appear
+    #   in the input graph relevant for feature computation, message-passing etc).
+    # ↝ SBMLModel.min_node_degree for the value used
+    cfg.dataset.exclude_low_degree = True
 
     # keys of features to normalise. These can also be features determined by GG`s feature augments.
     # note these usually begin with `node_`.
@@ -48,8 +53,7 @@ def set_cfg_dataset(cfg):
     #   or order or consistency of values they provide.
     # Could technically also sweep over all given graphs first to determine the overall range but this
     #   is much simpler.
-    cfg.dataset.possible_classes = ['PROTEIN', 'reaction', 'RNA', 'DEGRADED', 'UNKNOWN', 'SIMPLE_MOLECULE', 'ION',
-                                    'GENE', 'PHENOTYPE', 'DRUG', 'COMPLEX']
+    cfg.dataset.possible_classes = [sc.value for sc in SpeciesClass]
 
     # whether to interpret the graph as simple graph, heterogeneous graph, bipartite, ...
     # will affect how some attributes (e.g. node_type) are set and what concrete subclass

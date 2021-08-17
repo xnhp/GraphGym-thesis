@@ -368,11 +368,13 @@ class Preprocess(nn.Module):
 
     def forward(self, batch):
         # TODO need to sub-index features computed on simple graph
-        #   like in SVM.py?
+        #   like in SVM.py/collect_feature_augment?
         # at this point, all information across different graphs is already
         # coalesced into the "batch", including edge index
         # can map these back to the individual graphs with indices in batch.batch
         batch.node_feature = torch.cat(
             [batch[name].float() for name in self.dim_dict],
             dim=1)
+        # replace with something like...?
+        # batch.node_feature = collect_feature_augment(____)
         return batch

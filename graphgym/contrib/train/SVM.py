@@ -1,10 +1,12 @@
+import numpy as np
 from graphgym.contrib.train.util import save_labels
 from graphgym.logger import Logger
 
 import deepsnap.graph
 import torch
 from graphgym.config import cfg
-from graphgym.contrib.feature_augment.util import get_non_rxn_nodes, tens_intersect, collect_feature_augment
+from graphgym.contrib.feature_augment.util import get_non_rxn_nodes, tens_intersect, collect_feature_augment, \
+    get_prediction_nodes
 from graphgym.register import register_train
 from sklearn import svm
 
@@ -35,10 +37,22 @@ def collect_per_graph(graph:deepsnap.graph.Graph):
     Obtain features and labels of nodes of the given graph, constrained to the current internal
     split (if desired) and non-reaction nodes.
     """
+
+    included, _ = get_prediction_nodes(graph)
+    # cleanup: could probably do this more elegantly by having above function return a mask tensor aswell
+    #   it basically already does? could I then just subindex further?
+    node_index = np.intersect1d(
+        get_non_rxn_nodes(graph.G),
+        included
+    )
+    n_excluded = len(get_non_rxn_nodes(graph.G)) - len(node_index)
+    print(f"excluded {n_excluded} nodes from {graph['name']}")
+
     train_label_index, picked_test, _ = tens_intersect(
         graph['node_label_index'],
-        torch.tensor(get_non_rxn_nodes(graph.G))
+        torch.tensor(node_index)
     )
+
     feats = collect_feature_augment(graph)[train_label_index]
     labels = graph['node_label'][picked_test]
     return feats, labels
