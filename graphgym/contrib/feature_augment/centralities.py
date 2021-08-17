@@ -1,26 +1,25 @@
 import igraph
+import networkx
 import networkx as nx
 import numpy
 import numpy as np
-
-from graphgym.register import register_feature_augment
 from graphgym.contrib.feature_augment.util import bfs_accumulate, compute_stats, get_igraph_cached
-
+from graphgym.register import register_feature_augment
 from pytictoc import TicToc
-from sklearn.utils import check_array
+import deepsnap
 
 
-def degree_fun(graph, **kwargs):
+def degree_fun(graph: deepsnap.graph.Graph, **kwargs):
     return [deg for (node, deg) in graph.G.degree(kwargs['nodes_requested'])]
 register_feature_augment('node_degree', degree_fun)
 
 
-def betweenness_centr_igraph(graph, **kwargs):
+def betweenness_centr_igraph(graph: deepsnap.graph.Graph, **kwargs):
     return betweenness_impl(graph, **kwargs)
 register_feature_augment('node_betweenness_centrality', betweenness_centr_igraph)
 
 
-def closeness_centr_func(graph, **kwargs):
+def closeness_centr_func(graph: deepsnap.graph.Graph, **kwargs):
     t = TicToc()
     t.tic()
     r = closeness_impl(graph, **kwargs)
@@ -29,7 +28,7 @@ def closeness_centr_func(graph, **kwargs):
 register_feature_augment('node_closeness_centrality', closeness_centr_func)
 
 
-def eigenvector_centr_func(graph, **kwargs):
+def eigenvector_centr_func(graph: deepsnap.graph.Graph, **kwargs):
     t = TicToc()
     t.tic()
     r = np.array(list(eigenvector_impl(graph).values()))[kwargs['nodes_requested']]
@@ -38,7 +37,7 @@ def eigenvector_centr_func(graph, **kwargs):
 register_feature_augment('node_eigenvector_centrality', eigenvector_centr_func)
 
 
-def betweenness_impl(graph, **kwargs):
+def betweenness_impl(graph: deepsnap.graph.Graph, **kwargs):
     iG = get_igraph_cached(graph)
     return iG.betweenness(
         vertices=kwargs['nodes_requested'],  # defaults to all vertices
@@ -46,9 +45,7 @@ def betweenness_impl(graph, **kwargs):
     )
 
 
-
-
-def closeness_impl(graph, **kwargs):
+def closeness_impl(graph: deepsnap.graph.Graph, **kwargs):
     iG = get_igraph_cached(graph)
     r = iG.closeness(vertices=kwargs['nodes_requested'], mode="all", normalized=True)
     npr = numpy.array(r)
@@ -61,13 +58,11 @@ def closeness_impl(graph, **kwargs):
     return list(npr)
 
 
-def eigenvector_impl(graph):
+def eigenvector_impl(graph: deepsnap.graph.Graph):
     return nx.algorithms.centrality.eigenvector_centrality_numpy(graph.G, max_iter=300)
 
 
-
-
-def ego_graphs_incr(g, source, radii):
+def ego_graphs_incr(g:networkx.Graph, source, radii):
     """
     Compute undirected ego graphs centered at `source`, including `source`.
     :param g:
@@ -93,7 +88,7 @@ def ego_graphs_incr(g, source, radii):
     return subgraphs
 
 
-def ego_centrality_func(graph, **kwargs):
+def ego_centrality_func(graph: deepsnap.graph.Graph, **kwargs):
     """
     Centrality measures for each node in ego graph of radius 3 and 5.
     Use custom BFS instead of networkx.generators.ego.ego_graph because that method takes ~1.2s on PDMap dataset
@@ -145,9 +140,7 @@ def ego_centrality_func(graph, **kwargs):
 register_feature_augment('node_ego_centralities', ego_centrality_func)
 
 
-
-
-def neighbour_centrality_statistics_func(graph, **kwargs):
+def neighbour_centrality_statistics_func(graph: deepsnap.graph.Graph, **kwargs):
     """
     Statistics (mean, max, min, stddev) of centralities of neighbour nodes, for each node.
     """

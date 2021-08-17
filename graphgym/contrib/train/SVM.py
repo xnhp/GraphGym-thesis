@@ -6,8 +6,6 @@ import torch
 from graphgym.config import cfg
 from graphgym.contrib.feature_augment.util import get_non_rxn_nodes, tens_intersect, collect_feature_augment
 from graphgym.register import register_train
-# Do not train a neural network but invoke some other algorithm
-# e.g. baseline classifier such as SVM
 from sklearn import svm
 
 

@@ -5,7 +5,7 @@ import networkx as nx
 from data.models import SBMLModel
 from data.util import is_model_file, groupby
 from deprecated.classic import deprecated
-from graphgym.contrib.feature_augment.util import split_rxn_nodes, get_simple_graph, get_interpretations
+from graphgym.contrib.feature_augment.util import split_rxn_nodes, nx_get_interpretations
 from more_itertools import powerset
 from networkx import NetworkXError
 
@@ -26,10 +26,10 @@ def set_labels_by_step(curr_g: nx.Graph, next_g: nx.Graph):
     # cannot compare models because the model may be the same, only the graph is constructed differently
     #   (might as well have implemented collapsing on the model)
     next_mdl = next_g.graph['model']
-    next_g_simple, next_g_proj = get_interpretations(next_g)
+    next_g_simple, next_g_proj = nx_get_interpretations(next_g)
     next_g_use = next_g_simple
     curr_mdl = curr_g.graph['model']
-    curr_g_simple, curr_g_proj = get_interpretations(curr_g)
+    curr_g_simple, curr_g_proj = nx_get_interpretations(curr_g)
     curr_g_use = curr_g_simple
     # set of species ids to which newly introduced speciesAliases correspond
     # must not do this based on models here in case we are comparing with a collapsed graph

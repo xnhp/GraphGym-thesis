@@ -14,6 +14,7 @@ from graphgym.checkpoint import load_ckpt, save_ckpt, clean_ckpt
 def train_epoch(logger, loader, model, optimizer, scheduler):
     model.train()
     time_start = time.time()
+    assert len(loader) == 1
     for batch in loader:
         optimizer.zero_grad()
         batch.to(torch.device(cfg.device))
@@ -50,6 +51,7 @@ def eval_epoch(logger, loader, model):
 @torch.no_grad()
 def write_predictions_for_all_splits(model, loaders, loggers, epoch):
     # assume only single batch in loader, else we have to approach this differently
+    assert len(loaders[0]) == 1
     names = ['train', 'test', 'val']  # ↝ compare-models.get_prediction_and_truth
     for loader, logger, name in zip(loaders, loggers, names):
         assert len(loader) == 1

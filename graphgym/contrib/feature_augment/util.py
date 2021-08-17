@@ -116,34 +116,18 @@ def compute_stats(l):
     return list([mean, minv, maxv, stddev])
 
 
-def get_bip_proj_repr(graph):
-    if cfg.dataset.graph_interpretation == "simple":
-        return get_bip_proj_cached(graph)
-    elif cfg.dataset.graph_interpretation == "bipartite_projection":
-        return graph
-    else:
-        raise NotImplementedError()
-
-
 def projection_wrap(augment_func):
     """
     always call the given augment on the bipartite projection
     :param augment_func:
     :return:
     """
+
     # wrapper for augment functions that operate on bipartite graph
-    def wrapped(graph, **kwargs):
+    def wrapped(graph: deepsnap.graph.Graph, **kwargs):
         # ↝ simple_wrap
-        # here, we always have fewer nodes; have to rely on downstream
-        # components to properly handle this
-        nodes_requested = graph.G.nodes
-        if cfg.dataset.graph_interpretation == "simple":
-            graph_to_use = get_bip_proj_cached(graph)
-        elif cfg.dataset.graph_interpretation == "bipartite_projection":
-            graph_to_use = graph
-        else:
-            raise NotImplementedError()
-        return augment_func(graph_to_use, nodes_requested=nodes_requested, **kwargs)
+        _, dsG_bip = ds_get_interpretations(graph)
+        return augment_func(dsG_bip, nodes_requested=dsG_bip.G.nodes, **kwargs)
 
     return wrapped
 
@@ -154,20 +138,24 @@ def simple_wrap(augment_func):
     :param augment_func:
     :return:
     """
-    def wrapped(graph, **kwargs):
+
+    def wrapped(graph: deepsnap.graph.Graph, **kwargs):
+        dsG_simple, dsG_bip = ds_get_interpretations(graph)
         if cfg.dataset.graph_interpretation == "simple":
-            graph_to_use = graph
             # node indices for which we want to compute features
             nodes_requested = graph.G.nodes
         elif cfg.dataset.graph_interpretation == "bipartite_projection":
-            graph_to_use = graph['simple_graph']  # TODO
             # in case we are given bip-proj as primary graph, compute only
-            # features in simple graph for nodes that will appear as nodes
-            # in the bipartite projection.
+            #   features in simple graph for nodes that will appear as nodes
+            #   in the bipartite projection.
+            # alternatively we would have to sub-index later but some computations are expensive so it seems
+            #   desirable to avoid them
+            # note that this means the cache cannot be transferred between different primary representations/interpretations
+            #   (as specified by dataset.graph_interpretation) ↝ [[^bbdce0]] and esp. [[^61a2c9]]
             nodes_requested = get_non_rxn_nodes(graph.G)
         else:
             raise NotImplementedError()
-        return augment_func(graph_to_use, nodes_requested=nodes_requested, **kwargs)
+        return augment_func(dsG_simple, nodes_requested=nodes_requested, **kwargs)
 
     return wrapped
 
@@ -175,7 +163,8 @@ def simple_wrap(augment_func):
 def get_non_rxn_nodes(graph: networkx.Graph):
     """
     :param graph:
-    :return: list of node indices
+    :return: list of node IDs that correspond to entities that are not reactions. Note that this returns the node IDs
+        of the given graph. GG performs a relabelling on the networkx graph upon wrapping it in a deepsnap graph.
     ↝ SBMLModel#reactions
     """
     return [node for (node, nodeclass) in graph.nodes(data='class') if nodeclass != 'reaction']
@@ -203,72 +192,88 @@ def split_rxn_nodes(graph: networkx.Graph):
                               lambda x: x[1] == 'reaction')
 
 
-def get_bip_proj_cached(graph: deepsnap.graph.Graph):
-    # TODO this happens on dsG level but we also want to do the same on nxG level
-    if graph['bipartite_projection'] is None:
-        t = TicToc()
-        t.tic()
-        bipartite_projection, non_rxn_nodes = bipartite_projection_onto_non_rxn(graph.G)
-        dsG = deepsnap.graph.Graph(bipartite_projection,
-                                   # avoid updating internal tensor repr
-                                   edge_label_index=[],
-                                   node_label_index=[]
-                                   )
+# cleanup
+nx_simple_ref_key = 'nx_simple_ref'
+nx_bip_ref_key = 'nx_bipartite_projection_ref'
+ds_simple_ref_key = 'ds_simple_ref'
+ds_bip_ref_key = 'ds_bipartite_projection_ref'
 
+
+def _ds_get_bip(dsG_simple: deepsnap.graph.Graph) -> deepsnap.graph.Graph:
+    if ds_bip_ref_key not in dsG_simple or dsG_simple[ds_bip_ref_key] is None:
+        simple_nxG, bip_nxG = nx_get_interpretations(dsG_simple.G)
+        dsG_bip = deepsnap.graph.Graph(bip_nxG,
+                                       # avoid updating internal tensor repr
+                                       edge_label_index=[],
+                                       node_label_index=[]
+                                       )
+        # cleanup: these should already be exactly all the node ids of bip_nxG
+        non_rxn_nodes = get_non_rxn_nodes(dsG_simple.G)
+        # note that deepsnap.graph.Graph constructor actually renames the nodes of the given nxG
+        # ↑ TODO at some point we expected integers there...?
+        #    at some points nodes were relabeled? ↝ deepsnap/graph.py:808
+        #    the above constructor modifies bip_nxG (relabels its nodes?)
+        #    do I have to update the nxGs?
         # selected nodes in original graph
         # i.e. ids of nodes that we want to consider in this split
-        node_ids, a_idx, b_idx = tens_intersect(graph['node_label_index'], torch.tensor(non_rxn_nodes))
-        dsG['node_label_index'] = b_idx
-        dsG['is_bipartite_projection'] = True
-        dsG['name'] = graph['name'] + " (bipartite projection)"
-        graph['bipartite_projection'] = dsG
-        t.toc("computed bipartite projection of " + graph['name'])
-    return graph['bipartite_projection']
+        node_ids, a_idx, b_idx = tens_intersect(dsG_simple['node_label_index'], torch.tensor(non_rxn_nodes))
+        dsG_bip['node_label_index'] = b_idx  # subset of node_label_index that appears in bip proj
+        dsG_bip['name'] = dsG_simple['name'] + " (bipartite projection)"
+        dsG_simple[ds_bip_ref_key] = dsG_bip
+        dsG_bip[ds_simple_ref_key] = dsG_simple
+    return dsG_simple[ds_bip_ref_key]
 
 
-def get_simple_graph(nxG: networkx.Graph) -> networkx.Graph:
+def _nx_get_bip(nxG_simple: networkx.Graph) -> networkx.Graph:
+    if nx_bip_ref_key not in nxG_simple.graph or nxG_simple.graph[nx_bip_ref_key] is None:
+        bipartite_projection = bipartite_projection_onto_non_rxn(nxG_simple)
+        bipartite_projection.graph[nx_simple_ref_key] = nxG_simple
+        nxG_simple.graph[nx_bip_ref_key] = bipartite_projection
+    return nxG_simple.graph[nx_bip_ref_key]
+
+
+def ds_get_interpretations(dsG: deepsnap.graph.Graph) -> Tuple[deepsnap.graph.Graph, deepsnap.graph.Graph]:
     """
-    Given a graph constructed via pipeline that can either be a simple graph or a bipartite projection,
-    return its simple graph representation.
+    Return both simple and bipartite representations of the given graph in an ordered tuple, no matter what
+    representation the given graph corresponds to.
     """
-    if nxG.graph['is_bipartite_projection']:
-        return nxG.graph['simple_graph']
+    # assume projection if has reference
+    if ds_simple_ref_key in dsG and dsG[ds_simple_ref_key] is not None:
+        return dsG[ds_simple_ref_key], dsG
     else:
-        return nxG
+        return dsG, _ds_get_bip(dsG)
 
 
-def get_interpretations(nxG: networkx.Graph) -> Tuple[networkx.Graph, networkx.Graph]:
-    is_proj = nxG.graph['is_bipartite_projection'] if 'is_bipartite_projection' in nxG.graph else False
-    if is_proj:
-        return nxG.graph['simple_graph'], nxG
+def nx_get_interpretations(nxG: networkx.Graph) -> Tuple[networkx.Graph, networkx.Graph]:
+    """
+    Return both simple and bipartite representations of the given graph in an ordered tuple, no matter what
+    representation the given graph corresponds to.
+    """
+    # assume graph is bipartite projection if it has reference to simple interpretation set
+    if nx_simple_ref_key in nxG.graph and nxG.graph[nx_simple_ref_key] is not None:
+        return nxG.graph[nx_simple_ref_key], nxG
     else:
-        if 'bipartite_projection' in nxG.graph:
-            return nxG, nxG.graph['bipartite_projection']
-        else:
-            bipartite_projection, _ = bipartite_projection_onto_non_rxn(nxG)
-            nxG.graph['bipartite_projection'] = bipartite_projection
-            return nxG, nxG.graph['bipartite_projection']
+        return nxG, _nx_get_bip(nxG)
 
-def bipartite_projection_onto_non_rxn(nxG: networkx.Graph) -> Tuple[networkx.Graph, list]:
+
+def bipartite_projection_onto_non_rxn(nxG: networkx.Graph) -> networkx.Graph:
     """
     :param nxG:
     :return: A networkx graph of the bipartite projection containing non-reaction nodes that are adjacent
-        iff they share a common reaction; and a list of node indices into the original graph identifying
-        non-reaction nodes.
+        iff they share a common reaction
     """
     non_rxn_nodes = get_non_rxn_nodes(nxG)
-    # TODO
+    # cleanup: is this just debug info and can be removed?
     rxn_n, non_rxn_n = split_rxn_nodes(nxG)
     rxn_ids = [n for n, _ in rxn_n]
     rxn_degs_sorted = list(sorted(nxG.degree(rxn_ids), key=lambda x: x[1]))
     rxn_degs = [d for _, d in rxn_degs_sorted]
     assert min(rxn_degs) > 0
-    # allow isolated nodes
-    # assert min([deg for (node, deg) in nxG.degree]) > 0
+    # ↑ ↝ [[^781aa1]]
     assert bipartite.is_bipartite_node_set(nxG, non_rxn_nodes)
     bipartite_projection = bipartite.projected_graph(nxG,
                                                      non_rxn_nodes)  # connected if common neighbour in rxn_nodes
-    return bipartite_projection, non_rxn_nodes
+    return bipartite_projection
 
 
 def tens_intersect(x: torch.Tensor, y: torch.Tensor):
@@ -296,9 +301,8 @@ def collect_feature_augment(graph: deepsnap.graph.Graph):
         dim=1)
 
 
-def get_igraph_cached(graph) -> igraph.Graph:
-    is_proj = graph['is_bipartite_projection'] if 'is_bipartite_projection' in graph else False
-    if is_proj:
+def get_igraph_cached(graph: deepsnap.graph.Graph) -> igraph.Graph:
+    if ds_simple_ref_key in graph and graph[ds_simple_ref_key] is not None:
         key = 'bipartite_projection_igraph'
     else:
         key = 'igraph'
