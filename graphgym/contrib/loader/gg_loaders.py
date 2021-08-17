@@ -1,5 +1,6 @@
 import itertools
 import os
+import warnings
 from typing import Optional
 
 import networkx as nx
@@ -101,9 +102,16 @@ def SBML_multi(_, __, ___) -> Optional[list[deepsnap.graph.Graph]]:
                 set_labels_by_step(*step)
             # additionally return collapsed graph
             # cannot infer labels for last graph in sequence, drop it
-            r = [collapsed_graph] + graphs[:-1]
-            print_label_sums(r)
-            return r
+            reorg_seq = [collapsed_graph] + graphs[:-1]
+
+            have_pos_labels, no_pos_labels = split_by_predicate(reorg_seq,
+                    lambda g: sum([label for _, label in list(g.nodes(data="node_label"))]) > 0)
+
+            if len(no_pos_labels) > 0:
+                warnings.warn(f"{len(no_pos_labels)} graphs were excluded from sequence because no positive labels were determined")
+
+            # return only graphs with positive labels, i.e. in which nodes were duplicated
+            return have_pos_labels
 
         def prepare_simple(name, dataset):
             collapsed_graph = loader_impl(*dataset, name, collapsed=True)
