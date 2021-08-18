@@ -1,1 +1,1 @@
-{"epoch": 0, "loss": 0.0, "lr": 0, "params": 1, "time_iter": 0.0, "gpu_memory": -1, "accuracy": 0.7619, "precision": 1.0, "recall": 0.0909, "f1": 0.1667, "auc": 0.7595}
+{"epoch": 0, "loss": 0.0, "lr": 0, "params": 1, "time_iter": 0.0, "gpu_memory": -1, "accuracy": 0.6957, "precision": 0.8, "recall": 0.4, "f1": 0.5333, "auc": 0.6615}

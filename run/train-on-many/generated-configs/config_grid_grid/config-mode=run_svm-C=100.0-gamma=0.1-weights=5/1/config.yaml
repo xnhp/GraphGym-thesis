@@ -59,6 +59,7 @@ dataset:
   edge_train_mode: all
   encoder_dim: 128
   exclude_complex_species: true
+  exclude_low_degree: true
   feat_cache: enabled
   format: SBML_multi
   graph_interpretation: simple
