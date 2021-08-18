@@ -175,22 +175,24 @@ def get_non_rxn_nodes(graph: networkx.Graph):
     return [node for (node, nodeclass) in graph.nodes(data='class') if nodeclass != SpeciesClass.reaction.value]
 
 
-def get_prediction_nodes(dsG: deepsnap.graph.Graph) -> Tuple[np.array, np.array]:
+def get_prediction_nodes(nxG: networkx.Graph) -> Tuple[np.array, np.array]:
     """
     Get indices of nodes to evaluate the prediction on. Motivation: Things like feature computation and message-passing
     should be based on the entire graph but to improve model performance we can exclude some things from prediction
     that we never want to duplicate anyways. Cf Nielsen et. al sec. 3.4
-    :param dsG:
+    :param nxG:
     :return:
     """
     # assume that node ids correspond to indices in deepsnap tensors ↝ deepsnap/graph.py:819
-    complex_to_exclude = get_nodes_by_class(dsG.G, SpeciesClass.complex) if cfg.dataset.exclude_complex_species else []
-    low_deg_to_exclude = list(_low_degree_nodes(dsG.G, SBMLModel.min_node_degree)) if cfg.dataset.exclude_low_degree else []
+    complex_to_exclude = get_nodes_by_class(nxG, SpeciesClass.complex) if cfg.dataset.exclude_complex_species else []
+    low_deg_to_exclude = list(_low_degree_nodes(nxG, SBMLModel.min_node_degree)) if cfg.dataset.exclude_low_degree else []
     # node_label_index are ids of nodes appearing in this internal split
 
     excluded = np.union1d(complex_to_exclude, low_deg_to_exclude)
-    included = np.setdiff1d(dsG.G.nodes, excluded)
+    included = np.setdiff1d(nxG.nodes, excluded)
     return included, excluded
+
+    # cleanup: also include non-rxn nodes? still need to ensure that outside
 
     # not all may be present in node_label_index because of internal split?
     # assert np.in1d(to_exclude, dsG.G['node_label_index'])

@@ -367,11 +367,11 @@ class Preprocess(nn.Module):
         return repr_str
 
     def forward(self, batch):
-        # TODO need to sub-index features computed on simple graph
-        #   like in SVM.py/collect_feature_augment?
         # at this point, all information across different graphs is already
         # coalesced into the "batch", including edge index
         # can map these back to the individual graphs with indices in batch.batch
+        # ↝ [[^6b599f]]: does not make sense (yet) for GNN to have features based on projection while
+        #   cfg.dataset.graph_interpretation is simple. Will fail in that case because tensor sizes do not match.
         batch.node_feature = torch.cat(
             [batch[name].float() for name in self.dim_dict],
             dim=1)

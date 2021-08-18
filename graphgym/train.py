@@ -1,14 +1,13 @@
+import logging
 import os
+import time
 
 import torch
-import time
-import logging
-
+from graphgym.checkpoint import load_ckpt, save_ckpt, clean_ckpt
 from graphgym.config import cfg
 from graphgym.contrib.train.util import save_labels
 from graphgym.loss import compute_loss
 from graphgym.utils.epoch import is_eval_epoch, is_ckpt_epoch
-from graphgym.checkpoint import load_ckpt, save_ckpt, clean_ckpt
 
 
 def train_epoch(logger, loader, model, optimizer, scheduler):

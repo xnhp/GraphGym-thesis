@@ -1,12 +1,17 @@
+import functools
+
 import networkx as nx
 import time
 import logging
 import pickle
 
+import numpy as np
+from graphgym.contrib.feature_augment.util import get_prediction_nodes, get_non_rxn_nodes
 from graphgym.contrib.train.SVM import get_external_split_graphs
 from graphgym.contrib.transform.normalize import normalize_scale, normalize_fit
 from sklearn.preprocessing import MinMaxScaler
 
+import deepsnap
 from deepsnap.dataset import GraphDataset
 import torch
 from torch.utils.data import DataLoader
@@ -195,18 +200,54 @@ def transform_after_split(datasets):
         cfg.dataset.task = 'node'
     # apply normalisation to dataset.
     if cfg.dataset.transform == 'normalize':
-        train_graphs = datasets[0]
-        scalers: dict
-        # initialise the scaler(s) using train split
+        fit_apply_normalization(datasets)
 
-        scalers = normalize_fit(train_graphs)
-        # datasets contain the same graph, only node_label_index is different
-        for dataset in datasets:
-            # apply scaler based on statistics from train split
-            # apply_transform will act on each graph in the dataset independently
-            dataset.apply_transform(normalize_scale, update_graph=True, update_tensor=False,
-                                    scalers=scalers)
+    # cleanup: could this also go into transform_before_split? guess we would have fewer graph objects to touch there
+    exclude_node_labels(datasets)
+
     return datasets
+
+
+def fit_apply_normalization(datasets):
+    """
+    Fit normalizer to external train split, apply to all splits
+    :param datasets:
+    :return:
+    """
+    train_graphs = datasets[0]
+    scalers: dict
+    # initialise the scaler(s) using train split
+    scalers = normalize_fit(train_graphs)
+    # datasets contain the same graph, only node_label_index is different
+    for dataset in datasets:
+        # apply scaler based on statistics from train split
+        # apply_transform will act on each graph in the dataset independently
+        dataset.apply_transform(normalize_scale, update_graph=True, update_tensor=False,
+                                scalers=scalers)
+
+
+def exclude_node_labels(datasets):
+    """
+    Constrain node_label_index and node_label of graphs in datasets to nodes that are not excluded from prediction
+    :param datasets:
+    :return:
+    """
+    # adjust node_label_index to not contain excluded nodes
+    for dataset in datasets:
+        # items in datasets correspond to internal splits
+        for dsG in dataset:
+            # ↝ GraphGym/graphgym/contrib/train/SVM.py:41 (collect_per_graph)
+            # cleanup: can most probably avoid some computations here
+            included, _ = get_prediction_nodes(dsG.G)
+            a = np.intersect1d(included, get_non_rxn_nodes(dsG.G))
+            b, picked, _ = np.intersect1d(dsG['node_label_index'], a, return_indices=True)
+            dsG['node_label_index'] = torch.tensor(b)
+            # node_label should correspond 1:1 to node_label_index, i.e.
+            #    label of nodes[node_label_index][i] is node_label[i]
+            # if we constrain node_label_index we also have to constrain node_label
+            #    ↝ GraphGym/graphgym/contrib/train/SVM.py:51
+            #       cleanup: coalesce into common function call?
+            dsG['node_label'] = dsG['node_label'][picked]
 
 
 def create_dataset():
@@ -304,4 +345,3 @@ def create_loader(datasets):
                                       pin_memory=False))
 
         return loaders
-
