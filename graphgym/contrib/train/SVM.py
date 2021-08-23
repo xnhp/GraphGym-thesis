@@ -1,5 +1,5 @@
 import numpy as np
-from graphgym.contrib.train.util import save_labels
+from graphgym.contrib.train.util import save_labels, get_external_split_graphs
 from graphgym.logger import Logger
 
 import deepsnap.graph
@@ -11,42 +11,21 @@ from graphgym.register import register_train
 from sklearn import svm
 
 
-def logical_and_pad(a, b):
-    """
-    perform logical-and between a and b, potentially padding one of either
-    :param a:
-    :param b:
-    :return:
-    """
-    if a.shape[0] == b.shape[0]:
-        return torch.logical_and(a, b)
-    if a.shape[0] < b.shape[0]:
-        smaller = a
-        greater = b
-    else:
-        smaller = b
-        greater = a
-    diff = abs(a.shape[0] - b.shape[0])
-    padding = torch.zeros(diff)
-    padded = torch.cat([smaller, padding], dim=0)
-    return torch.logical_and(greater, padded)
-
-
 def collect_per_graph(graph:deepsnap.graph.Graph):
     """
     Obtain features and labels of nodes of the given graph, constrained to the current internal
     split (if desired) and non-reaction nodes.
     """
 
-    included, _ = get_prediction_nodes(graph)
+    included, _ = get_prediction_nodes(graph.G)
     # cleanup: could probably do this more elegantly by having above function return a mask tensor aswell
     #   it basically already does? could I then just subindex further?
     node_index = np.intersect1d(
         get_non_rxn_nodes(graph.G),
         included
     )
-    n_excluded = len(get_non_rxn_nodes(graph.G)) - len(node_index)
-    print(f"excluded {n_excluded} nodes from {graph['name']}")
+    # n_excluded = len(get_non_rxn_nodes(graph.G)) - len(node_index)
+    # print(f"excluded {n_excluded} nodes from {graph['name']}")
 
     train_label_index, picked_test, _ = tens_intersect(
         graph['node_label_index'],
@@ -67,18 +46,6 @@ def collect_across_graphs(graphs:list[deepsnap.graph.Graph]):
     feats = torch.cat([x[0] for x in l], dim=0)
     labels = torch.cat([x[1] for x in l], dim=0)
     return feats, labels
-
-
-def get_external_split_graphs(datasets):
-    # these are the graphs in external train split, with node idx for internal train/test split
-    # is_train / is_test attributes are being set by loader based on what is specified in config yaml
-    # internal train/test split is reflected in datasets[0] and datasets[1], the is_train flag
-    # describes the external train/test split (TODO rename)
-    train_graphs = [graph for graph in datasets[0].graphs if graph['is_train']]
-    test_graphs = [graph for graph in datasets[1].graphs if graph['is_train']]
-    # these are the graphs in the external test split. here, we want to consider the entire graph.
-    val_graphs = collect_val_graphs(datasets)
-    return train_graphs, test_graphs, val_graphs
 
 
 def run_svm(loggers, loaders, model, optimizer, scheduler, datasets):
@@ -156,28 +123,6 @@ def run_svm(loggers, loaders, model, optimizer, scheduler, datasets):
 
     for logger in loggers:
         logger.close()
-
-
-def collect_val_graphs(datasets):
-    """
-    Collect validation graphs.
-    complication is that also these graphs are being split internally
-    and each representation only has node labels for its subset.
-    However, we want to consider the entire graph.
-    Hence, here, recollect node_labels across internal splits
-    :param datasets:
-    :return:
-    """
-    val_graphs_train = [graph for graph in datasets[0].graphs if graph['is_test']]
-    val_graphs_test = [graph for graph in datasets[1].graphs if graph['is_test']]
-    val_graphs_full = []
-    for train_graph, test_graph in zip(val_graphs_train, val_graphs_test):
-        dummy = train_graph  # mind we modify this, but eh should be fine
-        dummy['node_label'] = torch.cat([train_graph['node_label'], test_graph['node_label']], dim=0)
-        # this below is nonsensical because this will just be *all* nodes but its the simplest for now
-        dummy['node_label_index'] = torch.cat([train_graph['node_label_index'], test_graph['node_label_index']], dim=0)
-        val_graphs_full.append(dummy)
-    return val_graphs_full
 
 
 def predict(X, Y, logger, model):

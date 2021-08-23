@@ -40,7 +40,7 @@ if __name__ == '__main__':
         setup_printing()
         auto_select_device()
         # Set learning environment
-        datasets = create_dataset()
+        datasets = create_dataset()  # also performs internal splits
         loaders = create_loader(datasets)
         meters = create_logger(datasets)
         model = create_model(datasets)

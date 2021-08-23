@@ -7,7 +7,7 @@ import pickle
 
 import numpy as np
 from graphgym.contrib.feature_augment.util import get_prediction_nodes, get_non_rxn_nodes
-from graphgym.contrib.train.SVM import get_external_split_graphs
+from graphgym.contrib.train.util import get_external_split_graphs
 from graphgym.contrib.transform.normalize import normalize_scale, normalize_fit
 from sklearn.preprocessing import MinMaxScaler
 
@@ -28,6 +28,7 @@ import graphgym.register as register
 
 from ogb.graphproppred import PygGraphPropPredDataset
 from deepsnap.batch import Batch
+from deepsnap.graph import Graph
 
 
 def load_pyg(name, dataset_dir):
@@ -253,10 +254,8 @@ def exclude_node_labels(datasets):
 def create_dataset():
     ## Load dataset
     time1 = time.time()
-    if cfg.dataset.format == 'OGB':
-        graphs, splits = load_dataset()
-    else:
-        graphs = load_dataset()
+    graphs: list[deepsnap.graph.Graph]
+    graphs = load_dataset()
 
     ## Filter graphs
     time2 = time.time()
@@ -278,17 +277,10 @@ def create_dataset():
     ## Split dataset
     time3 = time.time()
     # Use custom data splits
-    if cfg.dataset.format == 'OGB':
-        datasets = []
-        datasets.append(dataset[splits['train']])
-        datasets.append(dataset[splits['valid']])
-        datasets.append(dataset[splits['test']])
-    # Use random split, supported by DeepSNAP
-    else:
-        datasets = dataset.split(
-            transductive=cfg.dataset.transductive,
-            split_ratio=cfg.dataset.split,
-            shuffle=cfg.dataset.shuffle_split)
+    datasets = dataset.split(
+        transductive=cfg.dataset.transductive,
+        split_ratio=cfg.dataset.split,
+        shuffle=cfg.dataset.shuffle_split)
     # We only change the training negative sampling ratio
     for i in range(1, len(datasets)):
         dataset.edge_negative_sampling_ratio = 1
@@ -307,7 +299,7 @@ def create_dataset():
 
 def create_loader(datasets):
     # datasets is python list of GraphDataset, the i-th one containing *all* given graphs but with node_label and
-    # node_label_index corresponding to split i.
+    # node_label_index corresponding to internal split i.
     if cfg.dataset.format == "SBML_multi":
         # consider explicit external split
         train_graphs, test_graphs, val_graphs = get_external_split_graphs(datasets)

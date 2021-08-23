@@ -75,6 +75,8 @@ def set_labels_by_step(curr_g: nx.Graph, next_g: nx.Graph):
         if len(new_adjacent) == 0:
             return False
         else:
+            # a motivation for this relaxation might be that there are possibly other nodes newly introduced
+            # in the neighbourhood
             return True
 
         neighbours_of_new = list(itertools.chain(*[next_g_use.neighbors(new['id']) for new in new_adjacent]))
