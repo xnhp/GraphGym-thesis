@@ -2,8 +2,8 @@ import itertools
 import os
 
 import networkx as nx
-from data.models import SBMLModel
-from data.util import is_model_file, groupby
+from data.models import SBMLModel, SpeciesAliasId
+from data.util import is_model_file, groupby, SpeciesClass
 from deprecated.classic import deprecated
 from graphgym.contrib.feature_augment.util import split_rxn_nodes, nx_get_interpretations
 from more_itertools import powerset
@@ -13,6 +13,10 @@ import deepsnap.graph
 
 dup_count = 0
 new_node_count = 0
+
+def flatten(l: list[list]):
+    return list(itertools.chain(*l))
+
 
 
 def set_labels_by_step(curr_g: nx.Graph, next_g: nx.Graph):
@@ -31,115 +35,205 @@ def set_labels_by_step(curr_g: nx.Graph, next_g: nx.Graph):
     curr_mdl = curr_g.graph['model']
     curr_g_simple, curr_g_proj = nx_get_interpretations(curr_g)
     curr_g_use = curr_g_simple
-    # set of species ids to which newly introduced speciesAliases correspond
-    # must not do this based on models here in case we are comparing with a collapsed graph
-    #   (a collapsed graph is based on the same model, just the graph is constructed differently)
-    new_node_ids = [node for node in next_g_proj if node not in curr_g_proj]
-    # ↑ not including reactions
-    # assume node id is alias id — fetch alias info based on node id
-    new_aliases = [next_mdl.aliases[new_node_id] for new_node_id in new_node_ids]
-    print(f"{curr_g_use.name} found {len(new_aliases)} new alias nodes in next graph")
 
     # species that have new aliases
-    new_aliases_species = set([alias['species'] for alias in new_aliases])
+    # new_aliases_species = set([alias['species'] for alias in new_aliases])
 
     # group new aliases by species
     # assert curr_mdl.alias_groupby_attrib == next_mdl.alias_groupby_attr and curr_mdl.alias_groupby_attrib is not None
     # keys: species id; items: alias dicts representing that species
-    new_aliases_grouped = groupby(new_aliases, lambda x: x[curr_mdl.alias_groupby_attrib])
+    # new_aliases_grouped = groupby(new_aliases, lambda x: x[curr_mdl.alias_groupby_attrib])
+
+
+    # identify all duplications from curr_g to next_g
+    # our approach is to consider newly introduced aliases in next_g and try to identify
+    #   their "duplication parents" (if any), i.e. nodes that were split into this alias
+    curr_g_directed = curr_g.graph['nx_multidigraph']
+    next_g_directed = next_g.graph['nx_multidigraph']
+
+    def maybe_get_parent(target_alias):
+        # check if has duplication parent, add to map
+        # P_plus := N_t^(-) ( N_t+1^(+) ( v_i ) ) \ N_t+1^(-) ( N_t+1^(+) ( v_i ) )
+        successors_in_next = next_g_directed.successors(target_alias['id'])
+        toNodest = set(flatten([
+            curr_g_directed.predecessors(alias)
+            for alias in successors_in_next
+        ]))
+        P_plus = toNodest.difference(set(flatten([
+            next_g_directed.predecessors(alias)
+            for alias in successors_in_next
+        ])))
+        # candidates must be of same class/type
+        P_plus = set(filter(
+            lambda alias: curr_g.nodes[alias]['class'] == target_alias['class'],
+            P_plus
+        ))
+
+        predecessors_in_next = next_g_directed.predecessors(target_alias['id'])
+        fromNodest = set(flatten([
+            curr_g_directed.successors(alias)
+            for alias in predecessors_in_next
+        ]))
+        P_minus = fromNodest.difference(set(flatten([
+            next_g_directed.successor(alias)
+            for alias in predecessors_in_next
+        ])))
+        P_minus = set(filter(
+            lambda alias: curr_g.nodes[alias]['class'] == target_alias['class'],
+            P_minus
+        ))
+
+        if len(P_plus) == 0 and len(P_minus) == 0:
+            return target_alias, None
+
+        if len(toNodest) == 0 or len(fromNodest) == 0:
+            P = set.union(P_plus, P_minus)  # take non-empty one
+        else:
+            # if node was not a source or sink, a valid duplication parent
+            #   must not be source or sink, i.e. must appear in both sets
+            P = set.intersection(P_plus, P_minus)
+
+        # must represent same species
+        P = set(filter(lambda a: curr_g.nodes[a]['species'] == target_alias['species'], P))
+
+        # may be empty if no parent found
+        # may be greater than 1 if edges were moved between duplicates
+        # TODO what to do if more than 1 candidate?
+        parent = P.pop() if len(P) == 1 else None
+        return target_alias, parent
+
+    # must not do this based on models here in case we are comparing with a collapsed graph
+    #   (a collapsed graph is based on the same model, just the graph is constructed differently)
+    new_node_ids = [node for node in next_g_use if node not in curr_g_use]
+    # ↑ not including reactions
+    # assume node id is alias id — fetch alias info based on node id
+    new_aliases = [next_mdl.aliases[new_node_id] for new_node_id in new_node_ids]
+    new_aliases = [alias for alias in new_aliases if not alias['species'] in [SpeciesClass.reaction.value, SpeciesClass.complex.value]]
+    print(f"{curr_g_use.name} \t {len(new_aliases)} new alias nodes in next graph (not rxn or complex)")
+
+    duplications: dict[SpeciesAliasId, list[SpeciesAliasId]] = groupby(
+        [x for x in map(maybe_get_parent, new_aliases) if x[1] is not None],
+        lambda t: t[1]  # group by id of duplication parent
+    )
+    print(f"{curr_g.name} \t {len(duplications.keys())} duplication parents identified")
+
+    def has_dups(target_alias) -> bool:
+        return is_dup_parent(target_alias)
+
+    def is_dup_parent(candidate_parent_alias):
+        # return candidate_parent_alias['id'] in duplications.keys()
+        return candidate_parent_alias in duplications.keys()
+
 
     # want to assign labels to aliases in curr_g (to be duplicated or not)
     # aliases in curr_g that are potentially duplicated in next_g
     # ↓ aliases whose species have new nodes
-    candidate_aliases = {
-        alias['id']: alias
-        for alias in curr_mdl.aliases.values()
-        if alias['species'] in new_aliases_species
-    }
+    # candidate_aliases = {
+    #     alias['id']: alias
+    #     for alias in curr_mdl.aliases.values()
+    #     if alias['species'] in new_aliases_species
+    # }
 
-    def has_dups(target_alias) -> bool:
-        # new aliases that represent the same species
-        try:
-            new_aliases_for_species = new_aliases_grouped[target_alias['species']]
-        except KeyError:
-            # there are no newly introduced aliases for the species that target_alias corresponds to
-            #   this means it cannot have been duplicated in this step
-            # return False
-            pass
-
-        # gather all new aliases of same species whose neighbourhood (in next_g) is a subset
-        #   of neighbourhood of target_alias in curr_g
-        old_neighbourhood = set(curr_g_use.neighbors(target_alias['id']))
-        new_adjacent = [alias for alias in new_aliases_for_species
-                        if set(next_g_use.neighbors(alias['id'])).issubset(old_neighbourhood)]
-        if len(new_adjacent) == 0:
-            return False
-        else:
-            # a motivation for this relaxation might be that there are possibly other nodes newly introduced
-            # in the neighbourhood
-            return True
-
-        neighbours_of_new = list(itertools.chain(*[next_g_use.neighbors(new['id']) for new in new_adjacent]))
-
-        try:
-            neighbours_of_target_in_next = list(next_g_use.neighbors(target_alias['id']))
-        except:
-            print(f"could not find node {target_alias['id']} in next_g")
-            neighbours_of_target_in_next = []
-        # ensure that proper partition of incident edges / neighbourhood: no superfluous edges
-        # ↓ neighbourhood in new graph
-        new_neighbourhood = neighbours_of_new + list(neighbours_of_target_in_next)  # note: multiset
-        # need to only count lengths because already established that subsets
-        return len(new_neighbourhood) == len(old_neighbourhood)
-
-        def safe_neighbs(nxG, node):
-            try:
-                return list(nxG.neighbors(node))
-            except NetworkXError:
-                print(f"could not get neighbours of {node}")
-                return []
-
-        # an alias is marked as to-be-duplicated if in next_g there are >= 2 aliases, at least one of them new...
-        # (>= condition already given by that we only look at *new* aliases (?`))
-        # TODO this seems to take fairly long for e.g. PDMap
-        #   we dont need to consider all powersets but for a given species only those that are new and also adjacent
-        candidate_dup_results = filter(
-            lambda s: len(s) > 0,
-            powerset(new_aliases_for_species))
-
-        # ... whose adjacencies exactly make up the adjacency of the alias
-        # (need to also consider alias that was already there)
-        candidate_dup_results = [
-            # append target_alias to tuples
-            subset + (target_alias,) for subset in candidate_dup_results
-        ]
-
-        def are_dups(candidate_subset):
-            # are the aliases in candidate_subset dups of `alias`?
-            # i.e. union of neighbours in next_g is neighbourhood of alias in curr_g
-            # TODO speed up by using boolean vector operations?
-            neighbs_union = set.union(*[
-                set(
-                    # consider only ids because nodes might differ in other attributes (or hash value) between graphs
-                    [nb for nb in safe_neighbs(next_g, a['id'])]  # already returns only ids i think
-                ) for a in candidate_subset
-            ])
-            neighbs_target = set([nb for nb in curr_g.neighbors(target_alias['id'])])
-            return neighbs_union == neighbs_target  # compares elements
-
-        return any(map(are_dups, candidate_dup_results))
-
+    # set labels in curr_g based on whether a node has duplicates or not.
     for _, node in curr_g.nodes.items():
+        node['node_label'] = int(has_dups(node['id']))
         # this should be a view, so modifying `node` should have an effect on the graph here?
-        node_alias_id = node['id']
-        if node_alias_id not in candidate_aliases:
-            node['node_label'] = 0
-        else:
-            alias = candidate_aliases[node_alias_id]
-            label = int(has_dups(alias))
-            node['node_label'] = label
+        # node_alias_id = node['id']
+        # if node_alias_id not in candidate_aliases:
+        #     node['node_label'] = 0
+        # else:
+        #     alias = candidate_aliases[node_alias_id]
+        #     label = int(has_dups(alias))
+        #     node['node_label'] = label
     # print("dup count " + str(dup_count))
     # print("new node count " + str(new_node_count))
+
+
+
+
+def has_dups_subset(new_aliases_grouped, curr_g_use, next_g_use, target_alias):
+    """
+    Second approach
+    :param new_aliases_grouped:
+    :param curr_g_use:
+    :param next_g_use:
+    :param target_alias:
+    :return:
+    """
+    # new aliases that represent the same species
+    try:
+        new_aliases_for_species = new_aliases_grouped[target_alias['species']]
+    except KeyError:
+        # there are no newly introduced aliases for the species that target_alias corresponds to
+        #   this means it cannot have been duplicated in this step
+        # return False
+        pass
+    # gather all new aliases of same species whose neighbourhood (in next_g) is a subset
+    #   of neighbourhood of target_alias in curr_g
+    old_neighbourhood = set(curr_g_use.neighbors(target_alias['id']))
+    new_adjacent = [alias for alias in new_aliases_for_species
+                    if set(next_g_use.neighbors(alias['id'])).issubset(old_neighbourhood)]
+    if len(new_adjacent) == 0:
+        return False
+    else:
+        # a motivation for this relaxation might be that there are possibly other nodes newly introduced
+        # in the neighbourhood
+        return True
+    neighbours_of_new = list(itertools.chain(*[next_g_use.neighbors(new['id']) for new in new_adjacent]))
+    try:
+        neighbours_of_target_in_next = list(next_g_use.neighbors(target_alias['id']))
+    except:
+        print(f"could not find node {target_alias['id']} in next_g")
+        neighbours_of_target_in_next = []
+    # ensure that proper partition of incident edges / neighbourhood: no superfluous edges
+    # ↓ neighbourhood in new graph
+    new_neighbourhood = neighbours_of_new + list(neighbours_of_target_in_next)  # note: multiset
+    # need to only count lengths because already established that subsets
+    return len(new_neighbourhood) == len(old_neighbourhood)
+
+
+def has_dups_powerset(next_g, curr_g):
+    """
+    first approach
+    :param next_g:
+    :param curr_g:
+    :return:
+    """
+    def safe_neighbs(nxG, node):
+        try:
+            return list(nxG.neighbors(node))
+        except NetworkXError:
+            print(f"could not get neighbours of {node}")
+            return []
+
+    # an alias is marked as to-be-duplicated if in next_g there are >= 2 aliases, at least one of them new...
+    # (>= condition already given by that we only look at *new* aliases (?`))
+    # TODO this seems to take fairly long for e.g. PDMap
+    #   we dont need to consider all powersets but for a given species only those that are new and also adjacent
+    candidate_dup_results = filter(
+        lambda s: len(s) > 0,
+        powerset(new_aliases_for_species))
+    # ... whose adjacencies exactly make up the adjacency of the alias
+    # (need to also consider alias that was already there)
+    candidate_dup_results = [
+        # append target_alias to tuples
+        subset + (target_alias,) for subset in candidate_dup_results
+    ]
+
+    def are_dups(candidate_subset):
+        # are the aliases in candidate_subset dups of `alias`?
+        # i.e. union of neighbours in next_g is neighbourhood of alias in curr_g
+        # TODO speed up by using boolean vector operations?
+        neighbs_union = set.union(*[
+            set(
+                # consider only ids because nodes might differ in other attributes (or hash value) between graphs
+                [nb for nb in safe_neighbs(next_g, a['id'])]  # already returns only ids i think
+            ) for a in candidate_subset
+        ])
+        neighbs_target = set([nb for nb in curr_g.neighbors(target_alias['id'])])
+        return neighbs_union == neighbs_target  # compares elements
+
+    return any(map(are_dups, candidate_dup_results))
 
 
 def load_reorganisation_steps(dataset, loader) -> list[deepsnap.graph.Graph]:

@@ -34,6 +34,9 @@ def collect_per_graph(graph:deepsnap.graph.Graph):
 
     feats = collect_feature_augment(graph)[train_label_index]
     labels = graph['node_label'][picked_test]
+    print(f"{graph['name']} \t {graph['node_label_index'].cpu().numpy().shape} number of labels (after exclude)")
+    print(f"{graph['name']} \t {graph['node_label'].cpu().numpy().sum()} label sum (after exclude)")
+
     return feats, labels
 
 

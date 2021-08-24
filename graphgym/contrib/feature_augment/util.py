@@ -183,6 +183,7 @@ def get_prediction_nodes(nxG: networkx.Graph) -> Tuple[np.array, np.array]:
     :param nxG:
     :return:
     """
+    assert not nxG.is_directed()
     # assume that node ids correspond to indices in deepsnap tensors ↝ deepsnap/graph.py:819
     complex_to_exclude = get_nodes_by_class(nxG, SpeciesClass.complex) if cfg.dataset.exclude_complex_species else []
     low_deg_to_exclude = list(_low_degree_nodes(nxG, SBMLModel.min_node_degree)) if cfg.dataset.exclude_low_degree else []

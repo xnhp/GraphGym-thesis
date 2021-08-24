@@ -93,6 +93,9 @@ class Logger(object):
         if pred_int.numpy().sum() == 0:  # no predicted samples
             warnings.warn("AUC undefined due to no predicted samples (setting to 0)")
             auc_value = 0
+        elif true.numpy().sum() == 0 or true.numpy().sum() == len(true.numpy()):
+            warnings.warn("AUC undefined due to only one class present in y_true")
+            auc_value = 0
         else:
             auc_value = round(roc_auc_score(true, pred_score), cfg.round)
         return {'accuracy': round(accuracy_score(true, pred_int), cfg.round),

@@ -56,7 +56,7 @@ def print_label_sums(graphs):
             label for _, label in
             list(graph.nodes(data="node_label"))
         ]
-        print(f"{graph.name} to-be-duplicated: {sum(labels)}")
+        print(f"{graph.name} \t {sum(labels)} sum of labels")
     pass
 
 

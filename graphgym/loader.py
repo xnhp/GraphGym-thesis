@@ -239,6 +239,8 @@ def exclude_node_labels(datasets):
         for dsG in dataset:
             # ↝ GraphGym/graphgym/contrib/train/SVM.py:41 (collect_per_graph)
             # cleanup: can most probably avoid some computations here
+            print(f"{dsG.G.graph['name']} \t {dsG['node_label_index'].cpu().numpy().shape} number of labels (before exclude)")
+            print(f"{dsG.G.graph['name']} \t {dsG['node_label'].cpu().numpy().sum()} label sum (before exclude)")
             included, _ = get_prediction_nodes(dsG.G)
             a = np.intersect1d(included, get_non_rxn_nodes(dsG.G))
             b, picked, _ = np.intersect1d(dsG['node_label_index'], a, return_indices=True)
@@ -249,6 +251,8 @@ def exclude_node_labels(datasets):
             #    ↝ GraphGym/graphgym/contrib/train/SVM.py:51
             #       cleanup: coalesce into common function call?
             dsG['node_label'] = dsG['node_label'][picked]
+            print(f"{dsG.G.graph['name']} \t {dsG['node_label_index'].cpu().numpy().shape} number of labels (after exclude)")
+            print(f"{dsG.G.graph['name']} \t {dsG['node_label'].cpu().numpy().sum()} label sum (after exclude)")
 
 
 def create_dataset():
