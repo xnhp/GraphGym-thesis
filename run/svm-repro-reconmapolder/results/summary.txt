@@ -1,0 +1,25 @@
+Models used for training (internal):
+
+Models used for validation (external):
+
+top 5 models on internal train split by auc
+	config-mode=run_svm-C=0.015625-gamma=0.1-weights=3:	 0.9075
+top 5 models on internal test/validate split by auc
+	config-mode=run_svm-C=0.015625-gamma=0.1-weights=3:	 0.0
+top 5 models on external test/validate split by auc
+	config-mode=run_svm-C=0.015625-gamma=0.1-weights=3:	 0.7885
+
+top 5 models on internal train split by accuracy
+	config-mode=run_svm-C=0.015625-gamma=0.1-weights=3:	 0.9732
+top 5 models on internal test/validate split by accuracy
+	config-mode=run_svm-C=0.015625-gamma=0.1-weights=3:	 0.8333
+top 5 models on external test/validate split by accuracy
+	config-mode=run_svm-C=0.015625-gamma=0.1-weights=3:	 0.7704
+
+info on fav mdl: config-mode=run_svm-C=0.015625-gamma=0.1-weights=3
+FPR at TPR cutoffs: 
+	0.25:	 0.027
+	0.50:	 0.162
+	0.75:	 0.319
+
+ (see folder for plots)

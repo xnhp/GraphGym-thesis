@@ -1,0 +1,15 @@
+# Format for each row: name in config.py; alias; range to search
+# No spaces, except between these 3 fields
+# Line breaks are used to union different grid search spaces
+# Feel free to add '#' to add comments
+
+# insights from train-on-many: low values for C (0.1 or 1.0) worked best
+# low values for gamma (0.1 or 1.0) worked best
+# weights = 3 or 5
+
+# based on best-performing model of svm-repro
+# (1) dataset configurations
+train.mode mode ['run_svm']
+model.svm_cost C [0.015625]
+model.svm_gamma gamma [0.1]
+model.class_weights weights [3]
