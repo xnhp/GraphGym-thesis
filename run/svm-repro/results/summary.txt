@@ -1,0 +1,49 @@
+Models used for training (internal):
+
+Models used for validation (external):
+
+top 5 models on internal train split by auc
+	config-mode=run_svm-C=1.0-gamma=0.1-weights=3:	 0.9198
+	config-mode=run_svm-C=0.5-gamma=0.1-weights=3:	 0.9099
+	config-mode=run_svm-C=0.001953125-gamma=0.1-weights=3:	 0.9011
+	config-mode=run_svm-C=0.015625-gamma=0.1-weights=3:	 0.8974
+	config-mode=run_svm-C=0.125-gamma=0.1-weights=3:	 0.8969
+top 5 models on internal test/validate split by auc
+	config-mode=run_svm-C=0.001953125-gamma=0.1-weights=3:	 0.0
+	config-mode=run_svm-C=0.015625-gamma=0.1-weights=3:	 0.0
+	config-mode=run_svm-C=0.125-gamma=0.1-weights=3:	 0.0
+	config-mode=run_svm-C=0.5-gamma=0.1-weights=3:	 0.0
+	config-mode=run_svm-C=1.0-gamma=0.1-weights=3:	 0.0
+top 5 models on external test/validate split by auc
+	config-mode=run_svm-C=0.5-gamma=0.1-weights=3:	 0.7952
+	config-mode=run_svm-C=0.125-gamma=0.1-weights=3:	 0.7915
+	config-mode=run_svm-C=1.0-gamma=0.1-weights=3:	 0.7862
+	config-mode=run_svm-C=0.001953125-gamma=0.1-weights=3:	 0.7857
+	config-mode=run_svm-C=0.015625-gamma=0.1-weights=3:	 0.7847
+
+top 5 models on internal train split by accuracy
+	config-mode=run_svm-C=1.0-gamma=0.1-weights=3:	 0.9757
+	config-mode=run_svm-C=0.5-gamma=0.1-weights=3:	 0.975
+	config-mode=run_svm-C=0.125-gamma=0.1-weights=3:	 0.9732
+	config-mode=run_svm-C=0.001953125-gamma=0.1-weights=3:	 0.9727
+	config-mode=run_svm-C=0.015625-gamma=0.1-weights=3:	 0.9727
+top 5 models on internal test/validate split by accuracy
+	config-mode=run_svm-C=0.001953125-gamma=0.1-weights=3:	 0.8333
+	config-mode=run_svm-C=0.015625-gamma=0.1-weights=3:	 0.8333
+	config-mode=run_svm-C=0.125-gamma=0.1-weights=3:	 0.8333
+	config-mode=run_svm-C=0.5-gamma=0.1-weights=3:	 0.8333
+	config-mode=run_svm-C=1.0-gamma=0.1-weights=3:	 0.8333
+top 5 models on external test/validate split by accuracy
+	config-mode=run_svm-C=1.0-gamma=0.1-weights=3:	 0.7971
+	config-mode=run_svm-C=0.001953125-gamma=0.1-weights=3:	 0.7959
+	config-mode=run_svm-C=0.5-gamma=0.1-weights=3:	 0.7959
+	config-mode=run_svm-C=0.015625-gamma=0.1-weights=3:	 0.7935
+	config-mode=run_svm-C=0.125-gamma=0.1-weights=3:	 0.7882
+
+info on fav mdl: config-mode=run_svm-C=0.5-gamma=0.1-weights=3
+FPR at TPR cutoffs: 
+	0.25:	 0.034
+	0.50:	 0.142
+	0.75:	 0.345
+
+ (see folder for plots)

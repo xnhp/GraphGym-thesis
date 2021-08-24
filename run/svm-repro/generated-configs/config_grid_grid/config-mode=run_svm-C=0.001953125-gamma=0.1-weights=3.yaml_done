@@ -1,0 +1,66 @@
+dataset:
+  augment_feature:
+  - node_degree
+  - node_degree_projection
+  - node_clustering_coefficient
+  - node_betweenness_centrality
+  - node_betweenness_centrality_projection
+  - node_closeness_centrality
+  - node_closeness_centrality_projection
+  - node_eigenvector_centrality
+  - node_eigenvector_centrality_projection
+  - node_neighbour_centrality_statistics
+  - node_neighbour_centrality_statistics_projection
+  - node_distance_set_size
+  - node_distance_set_size_projection
+  - node_class_onehot
+  augment_feature_dims:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+  - 10
+  - 11
+  - 12
+  - 13
+  - 14
+  - 15
+  - 16
+  - 17
+  - 18
+  - 19
+  - 20
+  - 21
+  - 22
+  - 23
+  - 24
+  - 25
+  augment_feature_repr: original
+  augment_label: ''
+  augment_label_dims: 0
+  feat_cache: enabled
+  format: SBML_multi
+  graph_interpretation: bipartite_projection
+  split:
+  - 1.0
+  - 0.0
+  task: node
+  task_type: classification
+  test_names:
+  - PDMap
+  train_names:
+  - AlzPathwayReorg
+  transductive: true
+  transform: normalize
+model:
+  class_weights: 3
+  svm_cost: 0.001953125
+  svm_gamma: 0.1
+out_dir: generated-configs\config_grid_grid
+train:
+  mode: run_svm

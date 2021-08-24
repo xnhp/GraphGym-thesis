@@ -1,0 +1,6 @@
+GPU Mem: [37]
+GPU Prob: [1.]
+Random select GPU, select GPU 0 with mem: 37
+Load: 29.07s, Before split: 13.03s, Split: 0.01562s, After split: 5.486s
+Num parameters: 1473
+Results aggregated across runs saved in generated-configs\config_grid_grid\config-mode=run_svm-C=0.015625-gamma=0.1-weights=3\agg

@@ -1,0 +1,6 @@
+GPU Mem: [37]
+GPU Prob: [1.]
+Random select GPU, select GPU 0 with mem: 37
+Load: 46.2s, Before split: 24.02s, Split: 0.01296s, After split: 11.1s
+Num parameters: 1473
+Results aggregated across runs saved in results\config\agg
