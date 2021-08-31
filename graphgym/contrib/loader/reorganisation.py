@@ -52,15 +52,28 @@ def set_labels_by_step(curr_g: nx.Graph, next_g: nx.Graph):
     next_g_directed = next_g.graph['nx_multidigraph']
 
     def maybe_get_parent(target_alias):
+
+        def neighbs_safe(g, func, node_id):
+            if node_id in g:
+                return func(node_id)
+            else:
+                return []
+
+        def successors_safe(g, node_id):
+            return neighbs_safe(g, g.successors, node_id)
+
+        def predecessors_safe(g, node_id):
+            return neighbs_safe(g, g.predecessors, node_id)
+
         # check if has duplication parent, add to map
         # P_plus := N_t^(-) ( N_t+1^(+) ( v_i ) ) \ N_t+1^(-) ( N_t+1^(+) ( v_i ) )
-        successors_in_next = next_g_directed.successors(target_alias['id'])
+        successors_in_next = successors_safe(next_g_directed, target_alias['id'])
         toNodest = set(flatten([
-            curr_g_directed.predecessors(alias)
+            predecessors_safe(curr_g_directed, alias)
             for alias in successors_in_next
         ]))
         P_plus = toNodest.difference(set(flatten([
-            next_g_directed.predecessors(alias)
+            predecessors_safe(next_g_directed, alias)
             for alias in successors_in_next
         ])))
         # candidates must be of same class/type
@@ -69,13 +82,13 @@ def set_labels_by_step(curr_g: nx.Graph, next_g: nx.Graph):
             P_plus
         ))
 
-        predecessors_in_next = next_g_directed.predecessors(target_alias['id'])
+        predecessors_in_next = predecessors_safe(next_g_directed, target_alias['id'])
         fromNodest = set(flatten([
-            curr_g_directed.successors(alias)
+            successors_safe(curr_g_directed, alias)
             for alias in predecessors_in_next
         ]))
         P_minus = fromNodest.difference(set(flatten([
-            next_g_directed.successor(alias)
+            successors_safe(next_g_directed, alias)
             for alias in predecessors_in_next
         ])))
         P_minus = set(filter(
@@ -104,7 +117,8 @@ def set_labels_by_step(curr_g: nx.Graph, next_g: nx.Graph):
 
     # must not do this based on models here in case we are comparing with a collapsed graph
     #   (a collapsed graph is based on the same model, just the graph is constructed differently)
-    new_node_ids = [node for node in next_g_use if node not in curr_g_use]
+    # use proj as to not consider reactions # TODO express this more nicely
+    new_node_ids = [node for node in next_g_proj if node not in curr_g_proj]
     # ↑ not including reactions
     # assume node id is alias id — fetch alias info based on node id
     new_aliases = [next_mdl.aliases[new_node_id] for new_node_id in new_node_ids]
@@ -145,6 +159,7 @@ def set_labels_by_step(curr_g: nx.Graph, next_g: nx.Graph):
         #     alias = candidate_aliases[node_alias_id]
         #     label = int(has_dups(alias))
         #     node['node_label'] = label
+        # TODO re-enable above?
     # print("dup count " + str(dup_count))
     # print("new node count " + str(new_node_count))
 
