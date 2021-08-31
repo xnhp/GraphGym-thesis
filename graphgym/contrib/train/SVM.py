@@ -110,19 +110,25 @@ def run_svm(loggers, loaders, model, optimizer, scheduler, datasets):
     rbf_svc.fit(X_train, Y_train)
 
     pred_train = predict(X_train, Y_train, logger_train, rbf_svc)
-    pred_test = predict(X_test, Y_test, logger_test, rbf_svc)
+    save_labels(Y_train, 'Y_train', logger_train.out_dir)
+    save_labels(pred_train[:, 1], 'pred_train', logger_train.out_dir)
+    if X_test.shape[0] > 0:
+        pred_test = predict(X_test, Y_test, logger_test, rbf_svc)
+        save_labels(Y_test, 'Y_test', logger_test.out_dir)
+        save_labels(pred_test[:, 1], 'pred_test', logger_test.out_dir)
+    else:
+        pred_test = torch.tensor([0]).to(torch.float)
+        Y_test = torch.tensor([0]).to(torch.float)
+        save_labels(Y_test, 'Y_test', logger_test.out_dir)
+        save_labels(pred_test, 'pred_test', logger_test.out_dir)
     pred_val = predict(X_val, Y_val, logger_val, rbf_svc)
+    save_labels(Y_val, 'Y_val', logger_val.out_dir)
+    save_labels(pred_val[:, 1], 'pred_val', logger_val.out_dir)
 
     # write model prediction. Doing so here is simpler than saving/loading the model as we would do
     #   with the checkpointing facility and pytorch models.
     # in case of pytorch modules we can load the checkpoint as we did in project?
     # output only probabilities of "larger" class, 1d expected downstream
-    save_labels(Y_test, 'Y_test', logger_test.out_dir)
-    save_labels(pred_test[:, 1], 'pred_test', logger_test.out_dir)
-    save_labels(Y_train, 'Y_train', logger_train.out_dir)
-    save_labels(pred_train[:, 1], 'pred_train', logger_train.out_dir)
-    save_labels(Y_val, 'Y_val', logger_val.out_dir)
-    save_labels(pred_val[:, 1], 'pred_val', logger_val.out_dir)
 
     for logger in loggers:
         logger.close()
