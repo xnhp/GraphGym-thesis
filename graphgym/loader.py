@@ -1,4 +1,5 @@
 import functools
+import warnings
 
 import networkx as nx
 import time
@@ -9,6 +10,7 @@ import numpy as np
 from graphgym.contrib.feature_augment.util import get_prediction_nodes, get_non_rxn_nodes
 from graphgym.contrib.train.util import get_external_split_graphs
 from graphgym.contrib.transform.normalize import normalize_scale, normalize_fit
+from imblearn.under_sampling import RandomUnderSampler
 from sklearn.preprocessing import MinMaxScaler
 
 import deepsnap
@@ -173,7 +175,31 @@ def transform_before_split(dataset):
         dataset.apply_transform(path_len, update_graph=False,
                                 update_tensor=False)
 
+    # note we cannot modify node_label or node_label_index here
+    # (e.g. to exclude nodes or under/oversample) without further adjustments
+    # since internal splitting assumes both to be of length n
+    # although we don't do internal splits right now we still run through that code and it
+    # would break
     return dataset
+
+
+def exclude_graphs_with_no_pos_label(datasets: list[GraphDataset]) -> list[GraphDataset]:
+    """
+    Replaces the contained GraphDataset with filtered versions.
+    using ↝ deepsnap.dataset.GraphDataset.filter
+    :param datasets:
+    :return:
+    """
+
+    def no_pos_label_filter(dsG):
+        if len(dsG['node_label']) == 0:
+            return True  # do not exlcude these cases (internal split or sth)
+        r = sum(dsG['node_label']) > 0  # node label attributes in nxG graph are obsolete now
+        if not r:
+            print(f"{dsG['name']} \t no positive labels, dropping")
+        return r
+
+    return [ds.filter(no_pos_label_filter) for ds in datasets]
 
 
 def transform_after_split(datasets):
@@ -203,8 +229,18 @@ def transform_after_split(datasets):
     if cfg.dataset.transform == 'normalize':
         fit_apply_normalization(datasets)
 
-    # cleanup: could this also go into transform_before_split? guess we would have fewer graph objects to touch there
-    exclude_node_labels(datasets)
+    for dataset in datasets:
+        exclude_node_labels(dataset)
+
+    datasets = exclude_graphs_with_no_pos_label(datasets)
+
+    # TODO this is problematic if we ever re-enable internal split because it will undersample from each split
+    # note that this still operates on single graphs in an insolated manner, if we are given a reorg seq
+    #   and each is imbalanced, stacking them will further amplify the imbalance.
+    if cfg.dataset.undersample_negatives_ratio is not None:
+        for dataset in datasets:
+            for dsG in dataset:
+                undersample_negatives(dsG)
 
     return datasets
 
@@ -227,32 +263,62 @@ def fit_apply_normalization(datasets):
                                 scalers=scalers)
 
 
-def exclude_node_labels(datasets):
+def undersample_negatives(dsG):
+    node_label = dsG['node_label']
+    node_label_index = dsG['node_label_index']
+    if len(node_label) == 0:
+        return
+    # subset of node_label_index that has node_label 0
+    # indices i with node_label[i] = 0
+    zero_ix = node_label_index[(node_label == 0).nonzero()]  # create boolean mask, then call nonzero
+    zero_ix = zero_ix.cpu().numpy()[:,0]
+    one_ix = node_label_index[(node_label == 1).nonzero()]  # positive class, should be equiv to node_label.nonzero()
+    one_ix = one_ix.cpu().numpy()[:,0]
+    if len(zero_ix) == 0 or len(one_ix) == 0:
+        warnings.warn(f"{dsG.G.graph['name']} \t only one class in labels!")
+        return  # may happen e.g. for absurdly small internal train split
+    if len(zero_ix) < len(one_ix) * cfg.dataset.undersample_negatives_ratio:
+        # cannot "under"sample enough — this happens e.g. for absurdly small internal split
+        sampling_strat = 'auto'  # take as many as we have, will result in balanced classes
+    else:
+        sampling_strat = 1 / cfg.dataset.undersample_negatives_ratio
+
+    rus = RandomUnderSampler(random_state=0, sampling_strategy=sampling_strat, replacement=False)
+    _, y_sampled = rus.fit_resample(np.ones(len(node_label)).reshape(-1,1), node_label)  # cleanup
+    indices_sampled = rus.sample_indices_
+
+    node_label_new = dsG['node_label'][indices_sampled]
+    node_label_index_new = dsG['node_label_index'][indices_sampled]
+
+    dsG['node_label'] = node_label_new
+    dsG['node_label_index'] = node_label_index_new
+    assert sum(node_label_new) == sum(node_label)
+    assert sum(node_label_new) * cfg.dataset.undersample_negatives_ratio == sum(node_label)
+
+
+def exclude_node_labels(dataset):
     """
-    Constrain node_label_index and node_label of graphs in datasets to nodes that are not excluded from prediction
-    :param datasets:
+    Updates node label tensors to exclude specific nodes.
+    :param dataset:
     :return:
     """
-    # adjust node_label_index to not contain excluded nodes
-    for dataset in datasets:
-        # items in datasets correspond to internal splits
-        for dsG in dataset:
-            # ↝ GraphGym/graphgym/contrib/train/SVM.py:41 (collect_per_graph)
-            # cleanup: can most probably avoid some computations here
-            print(f"{dsG.G.graph['name']} \t {dsG['node_label_index'].cpu().numpy().shape} number of labels (before exclude)")
-            print(f"{dsG.G.graph['name']} \t {dsG['node_label'].cpu().numpy().sum()} label sum (before exclude)")
-            included, _ = get_prediction_nodes(dsG.G)
-            a = np.intersect1d(included, get_non_rxn_nodes(dsG.G))
-            b, picked, _ = np.intersect1d(dsG['node_label_index'], a, return_indices=True)
-            dsG['node_label_index'] = torch.tensor(b)
-            # node_label should correspond 1:1 to node_label_index, i.e.
-            #    label of nodes[node_label_index][i] is node_label[i]
-            # if we constrain node_label_index we also have to constrain node_label
-            #    ↝ GraphGym/graphgym/contrib/train/SVM.py:51
-            #       cleanup: coalesce into common function call?
-            dsG['node_label'] = dsG['node_label'][picked]
-            print(f"{dsG.G.graph['name']} \t {dsG['node_label_index'].cpu().numpy().shape} number of labels (after exclude)")
-            print(f"{dsG.G.graph['name']} \t {dsG['node_label'].cpu().numpy().sum()} label sum (after exclude)")
+    for dsG in dataset:
+        # ↝ GraphGym/graphgym/contrib/train/SVM.py:41 (collect_per_graph)
+        # cleanup: can most probably avoid some computations here
+        print(f"{dsG.G.graph['name']} \t {len(dsG['node_label_index'])} number of labels (before exclude)")
+        print(f"{dsG.G.graph['name']} \t {sum(dsG['node_label'])} label sum (before exclude)")
+        included, _ = get_prediction_nodes(dsG.G)
+        a = np.intersect1d(included, get_non_rxn_nodes(dsG.G))
+        b, picked, _ = np.intersect1d(dsG['node_label_index'], a, return_indices=True)
+        dsG['node_label_index'] = torch.tensor(b)
+        # node_label should correspond 1:1 to node_label_index, i.e.
+        #    label of nodes[node_label_index][i] is node_label[i]
+        # if we constrain node_label_index we also have to constrain node_label
+        #    ↝ GraphGym/graphgym/contrib/train/SVM.py:51
+        #       cleanup: coalesce into common function call?
+        dsG['node_label'] = dsG['node_label'][picked]
+        print(f"{dsG.G.graph['name']} \t {len(dsG['node_label_index'])} number of labels (after exclude)")
+        print(f"{dsG.G.graph['name']} \t {sum(dsG['node_label'])} label sum (after exclude)")
 
 
 def create_dataset():
@@ -281,6 +347,7 @@ def create_dataset():
     ## Split dataset
     time3 = time.time()
     # Use custom data splits
+    # dataset.split assumes that node_label and node_label_index is untouched (of length n)
     datasets = dataset.split(
         transductive=cfg.dataset.transductive,
         split_ratio=cfg.dataset.split,
@@ -308,7 +375,6 @@ def create_loader(datasets):
         # consider explicit external split
         train_graphs, test_graphs, val_graphs = get_external_split_graphs(datasets)
 
-        # TODO does this also properly handle internal splits? i think not
         loader_train = DataLoader(train_graphs, collate_fn=Batch.collate(),
                                   batch_size=cfg.train.batch_size, shuffle=True,
                                   num_workers=cfg.num_workers, pin_memory=False)

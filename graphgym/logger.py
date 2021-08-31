@@ -64,7 +64,12 @@ class Logger(object):
 
     # basic properties
     def basic(self):
-        return {'loss': round(self._loss / self._size_current, cfg.round),
+        if self._size_current == 0:
+            warnings.warn("batch size is 0, cannot report loss")
+            loss = 0
+        else:
+            loss = round(self._loss / self._size_current, cfg.round)
+        return {'loss': loss,
                 'lr': round(self._lr, cfg.round),
                 'params': self._params,
                 'time_iter': round(self.time_iter(), cfg.round),

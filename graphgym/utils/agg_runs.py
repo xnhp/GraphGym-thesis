@@ -91,7 +91,11 @@ def agg_runs(dir, metric_best='auto'):
                 if is_split(split):
                     dir_split = os.path.join(dir_seed, split)
                     fname_stats = os.path.join(dir_split, 'stats.json')
-                    stats_list = json_to_dict_list(fname_stats)
+                    try:
+                        stats_list = json_to_dict_list(fname_stats)
+                    except FileNotFoundError:
+                        print(f"file {fname_stats} not found, ignoring")
+                        continue
                     stats_best = [stats for stats in stats_list if stats['epoch'] == best_epoch][0]
                     print(stats_best)
                     stats_list = [[stats] for stats in stats_list]

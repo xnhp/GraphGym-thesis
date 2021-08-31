@@ -53,7 +53,7 @@ def write_predictions_for_all_splits(model, loaders, loggers, epoch):
     assert len(loaders[0]) == 1
     names = ['train', 'test', 'val']  # ↝ compare-models.get_prediction_and_truth
     for loader, logger, name in zip(loaders, loggers, names):
-        assert len(loader) == 1
+        assert len(loader) <= 1
         for batch in loader:
             batch.to(torch.device(cfg.device))
             pred, true = model(batch)
@@ -80,6 +80,8 @@ def train(loggers, loaders, model, optimizer, scheduler):
         # also cannot find any example that uses more than two internal splits
         if is_eval_epoch(cur_epoch):
             for i in range(1, num_splits):
+                if loggers[i].name == 'val':
+                    continue
                 eval_epoch(loggers[i], loaders[i], model)
                 loggers[i].write_epoch(cur_epoch)
             write_predictions_for_all_splits(model, loaders, loggers, cur_epoch)

@@ -372,6 +372,7 @@ class Preprocess(nn.Module):
         # can map these back to the individual graphs with indices in batch.batch
         # ↝ [[^6b599f]]: does not make sense (yet) for GNN to have features based on projection while
         #   cfg.dataset.graph_interpretation is simple. Will fail in that case because tensor sizes do not match.
+        #   Works if only features based on simple graph are used (may need to update cache)
         batch.node_feature = torch.cat(
             [batch[name].float() for name in self.dim_dict],
             dim=1)
