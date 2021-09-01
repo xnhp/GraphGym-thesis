@@ -194,6 +194,9 @@ def exclude_graphs_with_no_pos_label(datasets: list[GraphDataset]) -> list[Graph
     def no_pos_label_filter(dsG):
         if len(dsG['node_label']) == 0:
             return True  # do not exlcude these cases (internal split or sth)
+        if 'is_test' in dsG.G.graph and dsG.G.graph['is_test']:
+            return True  # do not exclude graphs external validation split
+            # TODO problematic if we'd really give a seq there.
         r = sum(dsG['node_label']) > 0  # node label attributes in nxG graph are obsolete now
         if not r:
             print(f"{dsG['name']} \t no positive labels, dropping")
@@ -237,7 +240,7 @@ def transform_after_split(datasets):
     # TODO this is problematic if we ever re-enable internal split because it will undersample from each split
     # note that this still operates on single graphs in an insolated manner, if we are given a reorg seq
     #   and each is imbalanced, stacking them will further amplify the imbalance.
-    if cfg.dataset.undersample_negatives_ratio is not None:
+    if cfg.dataset.undersample_negatives_ratio not in [0, None]:
         for dataset in datasets:
             for dsG in dataset:
                 undersample_negatives(dsG)
@@ -266,7 +269,7 @@ def fit_apply_normalization(datasets):
 def undersample_negatives(dsG):
     node_label = dsG['node_label']
     node_label_index = dsG['node_label_index']
-    if len(node_label) == 0:
+    if len(node_label) <= 1:
         return
     # subset of node_label_index that has node_label 0
     # indices i with node_label[i] = 0
@@ -293,7 +296,7 @@ def undersample_negatives(dsG):
     dsG['node_label'] = node_label_new
     dsG['node_label_index'] = node_label_index_new
     assert sum(node_label_new) == sum(node_label)
-    assert sum(node_label_new) * cfg.dataset.undersample_negatives_ratio == sum(node_label)
+    assert sum(node_label_new) * (cfg.dataset.undersample_negatives_ratio + 1) == len(node_label_new)
 
 
 def exclude_node_labels(dataset):

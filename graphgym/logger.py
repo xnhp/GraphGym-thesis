@@ -124,7 +124,7 @@ class Logger(object):
                 }
 
     def time_iter(self):
-        return self._time_used / self._iter
+        return self._time_used / (self._iter + 1)
 
     def eta(self, epoch_current):
         epoch_current += 1  # since counter starts from 0
