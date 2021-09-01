@@ -232,6 +232,11 @@ def _ds_get_bip(dsG_simple: deepsnap.graph.Graph) -> deepsnap.graph.Graph:
         simple_nxG, bip_nxG = nx_get_interpretations(dsG_simple.G)
         dsG_bip = deepsnap.graph.Graph(bip_nxG,
                                        # avoid updating internal tensor repr
+                                       # will trigger relabeling nodes sequentially
+                                       # TODO verify we are not messing something up here
+                                       #    and requesting features for wrong nodes.
+                                       #    but maybe if we never use bip feats while working
+                                       #    on the simple repr this is fine?
                                        edge_label_index=[],
                                        node_label_index=[]
                                        )
@@ -246,6 +251,7 @@ def _ds_get_bip(dsG_simple: deepsnap.graph.Graph) -> deepsnap.graph.Graph:
         # i.e. ids of nodes that we want to consider in this split
         node_ids, a_idx, b_idx = tens_intersect(dsG_simple['node_label_index'], torch.tensor(non_rxn_nodes))
         dsG_bip['node_label_index'] = b_idx  # subset of node_label_index that appears in bip proj
+        # TODO also need to set node_label here?
         dsG_bip['name'] = dsG_simple['name'] + " (bipartite projection)"
         dsG_simple[ds_bip_ref_key] = dsG_bip
         dsG_bip[ds_simple_ref_key] = dsG_simple

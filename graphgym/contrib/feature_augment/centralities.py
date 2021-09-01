@@ -14,6 +14,26 @@ def degree_fun(graph: deepsnap.graph.Graph, **kwargs):
 register_feature_augment('node_degree', degree_fun)
 
 
+def in_degree_fun(graph: deepsnap.graph.Graph, **kwargs):
+    # NOTE that this returns always the in/out degrees for simple graph representation, even if
+    #   called via node_in_degree_projection
+    mDiG: nx.MultiDiGraph = graph.G.graph['nx_multidigraph']  # simple graph interpretation
+    # complication: wrapping a nxG in a dsG (using the deepsnap.graph.Graph constructor)
+    #   leads to that the nodes in the nxG are relabelled sequentially
+    nodes_requested = [graph.mapping_int_to_alias[id] for id in kwargs['nodes_requested']]
+    assert all([alias in mDiG for alias in nodes_requested])
+    return [deg for (_, deg) in mDiG.in_degree(nodes_requested)]
+register_feature_augment('node_in_degree', in_degree_fun)
+
+
+def out_degree_fun(graph: deepsnap.graph.Graph, **kwargs):
+    mDiG: nx.MultiDiGraph = graph.G.graph['nx_multidigraph']
+    nodes_requested = [graph.mapping_int_to_alias[id] for id in kwargs['nodes_requested']]
+    assert all([alias in mDiG for alias in nodes_requested])
+    return [deg for (_, deg) in mDiG.out_degree(nodes_requested)]
+register_feature_augment('node_out_degree', out_degree_fun)
+
+
 def betweenness_centr_igraph(graph: deepsnap.graph.Graph, **kwargs):
     return betweenness_impl(graph, **kwargs)
 register_feature_augment('node_betweenness_centrality', betweenness_centr_igraph)

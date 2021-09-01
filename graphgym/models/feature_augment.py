@@ -134,6 +134,8 @@ class FeatureAugment(nn.Module):
             'node_betweenness_centrality',
             'node_degree',
             # from extensions
+            'node_in_degree',
+            'node_out_degree',
             'node_closeness_centrality',
             'node_eigenvector_centrality',
             'node_ego_centralities',
@@ -150,6 +152,8 @@ class FeatureAugment(nn.Module):
 
         # add feature augments that operate on bipartite projection
         # these will always operate on bip-proj, no matter what graph is given as primary
+        # note that in- and out-degree are **always reported for the simple graph representation**
+        # even if we given `node_in_degree_projection`! ↝ [[^c8c6c13]]
         projection_wrapped = {
                 proj_feat + "_projection": projection_wrap(self.feature_dict[proj_feat])
                 for proj_feat in bip_proj_feats

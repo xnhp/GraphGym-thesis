@@ -22,6 +22,8 @@ def set_cfg_dataset(cfg):
     # ↝ graphgym.contrib.transform.normalize.normalize_fit
     cfg.dataset.normalize_feats = [
         "node_degree",
+        "node_in_degree",
+        "node_out_degree",
         "node_degree_projection",
         "node_clustering_coefficient",
         "node_betweenness_centrality",

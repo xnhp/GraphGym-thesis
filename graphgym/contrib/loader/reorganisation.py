@@ -48,6 +48,8 @@ def set_labels_by_step(curr_g: nx.Graph, next_g: nx.Graph):
     # identify all duplications from curr_g to next_g
     # our approach is to consider newly introduced aliases in next_g and try to identify
     #   their "duplication parents" (if any), i.e. nodes that were split into this alias
+    # assumes that node ids correspond to species alias ids. this is not always the case since
+    #   wrapping a networkx graph in a deepsnap graph may trigger re-labeling of the nodes with sequential integers
     curr_g_directed = curr_g.graph['nx_multidigraph']
     next_g_directed = next_g.graph['nx_multidigraph']
 
