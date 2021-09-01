@@ -8,7 +8,7 @@ from graphgym.config import cfg
 
 def loss_bce_weighted(pred, true):
     if cfg.model.loss_fun == 'cross_entropy_weighted':
-        pos_weight = 10
+        pos_weight = cfg.dataset.minority_loss_weight
         bce_loss = nn.BCEWithLogitsLoss(
             reduction=cfg.model.size_average,   # same as in original approach
             pos_weight=torch.tensor([pos_weight]).to(torch.device(cfg.device))

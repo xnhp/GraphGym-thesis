@@ -66,4 +66,8 @@ def set_cfg_dataset(cfg):
     # if the given number results in more required samples as available, we will fall back to 1
     cfg.dataset.undersample_negatives_ratio = None
 
+    # some loss functions (e.g. BCE) allow to specify weights for classes, classifications of a class with higher
+    # weight will have more impact on loss value.
+    cfg.dataset.minority_loss_weight = 1
+
 register_config('dataset_config', set_cfg_dataset)
