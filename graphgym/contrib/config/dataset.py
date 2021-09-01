@@ -64,6 +64,7 @@ def set_cfg_dataset(cfg):
     # to be taken for the negative class will be len(pos_class) * ratio
     # e.g. if we give 2 here, we will have twice as many negative as positive examples
     # if the given number results in more required samples as available, we will fall back to 1
+    # None or 0 mean that no undersampling will be employed
     cfg.dataset.undersample_negatives_ratio = None
 
     # some loss functions (e.g. BCE) allow to specify weights for classes, classifications of a class with higher
