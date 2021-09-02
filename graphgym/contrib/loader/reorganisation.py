@@ -5,7 +5,7 @@ import networkx as nx
 from data.models import SBMLModel, SpeciesAliasId
 from data.util import is_model_file, groupby, SpeciesClass
 from deprecated.classic import deprecated
-from graphgym.contrib.feature_augment.util import split_rxn_nodes, nx_get_interpretations
+from graphgym.contrib.feature_augment.util import split_rxn_nodes, nx_get_interpretations, get_prediction_nodes
 from more_itertools import powerset
 from networkx import NetworkXError
 
@@ -14,9 +14,9 @@ import deepsnap.graph
 dup_count = 0
 new_node_count = 0
 
+
 def flatten(l: list[list]):
     return list(itertools.chain(*l))
-
 
 
 def set_labels_by_step(curr_g: nx.Graph, next_g: nx.Graph):
@@ -43,7 +43,6 @@ def set_labels_by_step(curr_g: nx.Graph, next_g: nx.Graph):
     # assert curr_mdl.alias_groupby_attrib == next_mdl.alias_groupby_attr and curr_mdl.alias_groupby_attrib is not None
     # keys: species id; items: alias dicts representing that species
     # new_aliases_grouped = groupby(new_aliases, lambda x: x[curr_mdl.alias_groupby_attrib])
-
 
     # identify all duplications from curr_g to next_g
     # our approach is to consider newly introduced aliases in next_g and try to identify
@@ -140,32 +139,16 @@ def set_labels_by_step(curr_g: nx.Graph, next_g: nx.Graph):
         # return candidate_parent_alias['id'] in duplications.keys()
         return candidate_parent_alias in duplications.keys()
 
-
-    # want to assign labels to aliases in curr_g (to be duplicated or not)
-    # aliases in curr_g that are potentially duplicated in next_g
-    # ↓ aliases whose species have new nodes
-    # candidate_aliases = {
-    #     alias['id']: alias
-    #     for alias in curr_mdl.aliases.values()
-    #     if alias['species'] in new_aliases_species
-    # }
-
     # set labels in curr_g based on whether a node has duplicates or not.
+    prediction_targets, _ = get_prediction_nodes(curr_g)
+    prediction_targets = set(prediction_targets)
     for _, node in curr_g.nodes.items():
-        node['node_label'] = int(has_dups(node['id']))
-        # this should be a view, so modifying `node` should have an effect on the graph here?
-        # node_alias_id = node['id']
-        # if node_alias_id not in candidate_aliases:
-        #     node['node_label'] = 0
-        # else:
-        #     alias = candidate_aliases[node_alias_id]
-        #     label = int(has_dups(alias))
-        #     node['node_label'] = label
-        # TODO re-enable above?
-    # print("dup count " + str(dup_count))
-    # print("new node count " + str(new_node_count))
-
-
+        if node['id'] in prediction_targets:
+            node['node_label'] = int(has_dups(node['id']))
+        else:
+            # note we exclude these later (see usages of `exclude_node_labels`)
+            # but can already avoid expensive computation here.
+            node['node_label'] = 0
 
 
 def has_dups_subset(new_aliases_grouped, curr_g_use, next_g_use, target_alias):
@@ -216,6 +199,7 @@ def has_dups_powerset(next_g, curr_g):
     :param curr_g:
     :return:
     """
+
     def safe_neighbs(nxG, node):
         try:
             return list(nxG.neighbors(node))
