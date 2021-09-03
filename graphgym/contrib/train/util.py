@@ -1,3 +1,4 @@
+import csv
 import os
 from typing import Tuple
 
@@ -13,6 +14,13 @@ def save_labels(tens: torch.Tensor, filename, out_dir):
     df.to_csv(os.path.join(out_dir, filename + ".csv"))
     # previous approach:
     # torch.save(Y_train, os.path.join(logger_train.out_dir, 'Y_train.pt'))
+
+def save_dict(d:dict, filename, out_dir):
+    target = os.path.join(out_dir, f"{filename}.csv")
+    with open(target, "wt") as fp:
+        writer = csv.writer(fp, delimiter=",")
+        # writer.writerow(["your", "header", "foo"])  # write header
+        writer.writerows(list(d.items()))
 
 
 def get_external_split_graphs(datasets) -> Tuple[list[deepsnap.graph.Graph], list[deepsnap.graph.Graph], list[deepsnap.graph.Graph]]:

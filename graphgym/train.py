@@ -5,7 +5,7 @@ import time
 import torch
 from graphgym.checkpoint import load_ckpt, save_ckpt, clean_ckpt
 from graphgym.config import cfg
-from graphgym.contrib.train.util import save_labels
+from graphgym.contrib.train.util import save_labels, save_dict
 from graphgym.loss import compute_loss
 from graphgym.utils.epoch import is_eval_epoch, is_ckpt_epoch
 
@@ -52,8 +52,9 @@ def write_predictions_for_all_splits(model, loaders, loggers, epoch):
     # assume only single batch in loader, else we have to approach this differently
     assert len(loaders[0]) == 1
     names = ['train', 'test', 'val']  # ↝ compare-models.get_prediction_and_truth
+
     for loader, logger, name in zip(loaders, loggers, names):
-        assert len(loader) <= 1
+        assert len(loader) <= 1  # == 1 probably suffices currently, think i set that to <= somewhen when messing with internal splits
         for batch in loader:
             batch.to(torch.device(cfg.device))
             pred, true = model(batch)
@@ -70,6 +71,12 @@ def train(loggers, loaders, model, optimizer, scheduler):
         logging.info('Checkpoint found, Task already done')
     else:
         logging.info('Start from epoch {}'.format(start_epoch))
+
+    # cleanup: could also do this way sooner? particularly if we only consider
+    # case of a single graph, i.e. dont have to consider what batching does.
+    # (e.g. in create_loader or shortly after)
+    write_node_id_mappings(loaders, loggers)
+    write_node_label_index(loaders, loggers)
 
     num_splits = len(loggers)
     for cur_epoch in range(start_epoch, cfg.optim.max_epoch):
@@ -93,3 +100,19 @@ def train(loggers, loaders, model, optimizer, scheduler):
         clean_ckpt()
 
     logging.info('Task done, results saved in {}'.format(cfg.out_dir))
+
+
+def write_node_id_mappings(loaders, loggers):
+    # loaders[2] is external test split
+    # assume that there is only one graph in external test split
+    # 607db5: at least for this one we want to manually assess predictions and thus need to map back to alias ids
+    # note that the one graph in external test split will correspond to a collapsed version, hence we cannot
+    # conveniently open up a CD/SBML drawing of it. But we can still look at the "next"/G_{t+1} which is an actual map.
+    # TODO write batch['mapping_int_to_alias'] to file.
+    # TODO only do this once per run
+    ext_train_batch = loaders[2].__iter__().next()
+    save_dict(ext_train_batch['mapping_int_to_alias'], "mapping_int_to_alias", loggers[2].out_dir)
+
+def write_node_label_index(loaders, loggers):
+    ext_train_batch = loaders[2].__iter__().next()
+    save_labels(ext_train_batch['node_label_index'], 'node_label_index', loggers[2].out_dir)

@@ -127,6 +127,8 @@ def SBML_multi(_, __, ___) -> Optional[list[deepsnap.graph.Graph]]:
 
     # external split
     train_graphs = [mark('train', graph) for graph in load_graphs(cfg.dataset.train_names)]
+    # note that by interface this supports reorganisation sequence datasets also as external test split
+    #   but actually using these will require further consideration (e.g. [[#^2ed5e1]])
     test_graphs = [mark('test', graph) for graph in load_graphs(cfg.dataset.test_names)]
 
     # GG does not support such a "manual external split" of datasets
