@@ -1,0 +1,1 @@
+{"epoch": 49, "loss": 0.7682, "loss_std": 0.0, "lr": 0.0, "lr_std": 0.0, "params": 275714.0, "params_std": 0.0, "time_iter": 0.0095, "time_iter_std": 0.0, "gpu_memory": -1.0, "gpu_memory_std": 0.0, "accuracy": 0.7729, "accuracy_std": 0.0, "precision": 1.0, "precision_std": 0.0, "recall": 0.0026, "recall_std": 0.0, "f1": 0.0052, "f1_std": 0.0, "auc": 0.8281, "auc_std": 0.0}

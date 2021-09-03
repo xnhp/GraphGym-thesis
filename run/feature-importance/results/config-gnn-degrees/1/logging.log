@@ -1,0 +1,10 @@
+GPU Mem: [37]
+GPU Prob: [1.]
+Random select GPU, select GPU 0 with mem: 37
+Load: 10.77s, Before split: 1.704s, Split: 0.001016s, After split: 1.009s
+Num parameters: 266242
+Start from epoch 0
+Check point saved: results\config-gnn-degrees\1/ckpt/99.ckpt
+Check point saved: results\config-gnn-degrees\1/ckpt/199.ckpt
+Task done, results saved in results\config-gnn-degrees\1
+Results aggregated across runs saved in results\config-gnn-degrees\agg

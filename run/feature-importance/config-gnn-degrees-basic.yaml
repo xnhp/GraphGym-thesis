@@ -1,0 +1,46 @@
+# parameters of best-performing model
+# on external validate split
+# in gcn-projection as of commit 879e9c06
+model:
+  type: gnn
+  loss_fun: cross_entropy
+gnn:
+  act: prelu
+  batchnorm: True
+  dropout: 0.0
+  agg: add
+  layers_mp: 2
+  layers_pre_mp: 2
+  layers_post_mp: 2
+  # TODO try smaller values for below?
+  dim_inner: 256
+  stage_type: 'skipsum'
+  # TODO try True for below?
+  normalize_adj: False
+train:
+  batch_size: 32
+optim:
+    base_lr: 0.01
+    optimizer: 'adam'
+    max_epoch: 200
+dataset:
+  task: node
+  task_type: classification
+  transductive: True
+  graph_interpretation: bipartite_projection
+  format: SBML_multi
+  train_names: [AlzPathwayReorg]
+  test_names: [PDMap]
+#  test_names: [ReconMapOlder]
+#  test_names: [ReconMapOlder]
+  split: [1.0,0.0]  # internal split
+  exclude_complex_species: True
+  feat_cache: "update"
+  augment_feature:
+    - "node_degree"
+    - "node_degree_projection"
+  transform: normalize
+  augment_feature_dims: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]
+  augment_feature_repr: original
+  augment_label: ''
+  augment_label_dims: 0

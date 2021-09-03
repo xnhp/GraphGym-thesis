@@ -1,0 +1,10 @@
+GPU Mem: [908]
+GPU Prob: [1.]
+Random select GPU, select GPU 0 with mem: 908
+Load: 16.52s, Before split: 5.01s, Split: 0.001993s, After split: 3.602s
+Num parameters: 275714
+Start from epoch 0
+Check point saved: results\config-gnn-basic-projection\1/ckpt/99.ckpt
+Check point saved: results\config-gnn-basic-projection\1/ckpt/199.ckpt
+Task done, results saved in results\config-gnn-basic-projection\1
+Results aggregated across runs saved in results\config-gnn-basic-projection\agg
