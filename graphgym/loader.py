@@ -1,12 +1,17 @@
 import functools
+import os
 import warnings
+from importlib.resources import files
 
+import networkx
 import networkx as nx
 import time
 import logging
 import pickle
 
 import numpy as np
+import pandas
+import pandas as pd
 from graphgym.contrib.feature_augment.util import get_prediction_nodes, get_non_rxn_nodes
 from graphgym.contrib.train.util import get_external_split_graphs
 from graphgym.contrib.transform.normalize import normalize_scale, normalize_fit
@@ -14,6 +19,7 @@ from imblearn.under_sampling import RandomUnderSampler
 from sklearn.preprocessing import MinMaxScaler
 
 import deepsnap
+from data.util import groupby
 from deepsnap.dataset import GraphDataset
 import torch
 from torch.utils.data import DataLoader
@@ -193,7 +199,7 @@ def exclude_graphs_with_no_pos_label(datasets: list[GraphDataset]) -> list[Graph
 
     def no_pos_label_filter(dsG):
         if len(dsG['node_label']) == 0:
-            return True  # do not exlcude these cases (internal split or sth)
+            return True  # do not exclude these cases (internal split or sth)
         if 'is_test' in dsG.G.graph and dsG.G.graph['is_test']:
             return True  # do not exclude graphs external validation split
             # TODO problematic if we'd really give a seq there.
@@ -206,11 +212,12 @@ def exclude_graphs_with_no_pos_label(datasets: list[GraphDataset]) -> list[Graph
 
 
 def transform_after_split(datasets):
-    '''
+    """
     Dataset transformation after train/val/test split
-    :param dataset: A list of DeepSNAP dataset objects
+    :param datasets: A list of DeepSNAP dataset objects. Each GraphDataset contains *all* given graphs, only with
+        node_label and node_label_index according to internal split
     :return: A list of transformed DeepSNAP dataset objects
-    '''
+    """
     if cfg.dataset.transform == 'ego':
         # seemingly computes ego graphs, but then each `dataset` here
         # is still one big graph object, probably containing all the little ego graphs
@@ -228,18 +235,53 @@ def transform_after_split(datasets):
                                           update_graph=False)
             split_dataset.task = 'node'
         cfg.dataset.task = 'node'
-    # apply normalisation to dataset.
+
+    # Normalise node features
     if cfg.dataset.transform == 'normalize':
         fit_apply_normalization(datasets)
 
-    for dataset in datasets:
-        exclude_node_labels(dataset)
-
     datasets = exclude_graphs_with_no_pos_label(datasets)
 
-    # TODO this is problematic if we ever re-enable internal split because it will undersample from each split
-    # note that this still operates on single graphs in an insolated manner, if we are given a reorg seq
+    # graph contents (nodes/edges) determines which nodes are used for message-passing
+    # node_label_index determines for which nodes we try to make a prediction
+
+    # When using annotations:
+    #   - Obtain mapping from aliases to annotations from disk (precomputed)
+    #   - Obtain mapping from annotations to their embeddings (feature vector representation)
+    #   - Take subgraph of given graph for aliases with available
+    #   - Aggregate and attach embeddings as node attributes (node_GO_embedding)
+    if cfg.dataset.use_annotated_subgraph:
+        def get_subgraph(graph) -> nx.Graph:
+            # assert that node_label_index was not restricted/modified yet
+            assert len(graph['node_label_index']) == len(graph['node_label'])
+            # construct subgraph and replace
+            nx_subgraph = annotated_subgraph_transform(graph)
+            return nx_subgraph
+
+        for i, dataset in enumerate(datasets):  # internal train/test split
+            # TODO only need to do this for one i
+            # construct new GraphDataset aswell because it e.g. contains info on number of nodes of
+            # contained graphs (its state depends on its contents)
+            datasets[i] = GraphDataset([
+                # create new dsG, relabeling nodes, recreating feature/attribute tensors,
+                # node_label_index being range(n)
+                deepsnap.graph.Graph(get_subgraph(graph))
+                for graph in dataset
+            ])
+
+    # NOTE the below routines will modify node_label_index
+    # Until above, we assume that no restrictions were made, i.e. node_label_index == range(num_nodes)
+
+    # Exclude some classes of nodes from prediction. They will still be present in the graph and be used
+    #   for message-passing in GNNs, but we will not try to make a prediction for these (or use their target class
+    #   information for training)
+    for dataset in datasets:
+        subset_prediction_nodes(dataset)
+
+    # Undersample the negative class, if enabeld.
+    # Note that this still operates on single graphs in an insolated manner, if we are given a reorg seq
     #   and each is imbalanced, stacking them will further amplify the imbalance.
+    # This is problematic if we ever re-enable internal split because it will undersample from each split
     if cfg.dataset.undersample_negatives_ratio not in [0, None]:
         for dataset in datasets:
             for dsG in dataset:
@@ -248,12 +290,107 @@ def transform_after_split(datasets):
     return datasets
 
 
+def read_annotation_data_for_graph(graph):
+    # how to obtain the previously written information here?
+    # ... need to get the right one for the current graph
+    if "AlzPathway" in graph['name']:
+        graph_dir = "mizuno_AlzPathwayComprehensiveMap_2021"
+    elif "pd" in graph['name'] or "PD" in graph['name']:
+        graph_dir = "pd_map_autumn_19"
+    else:
+        graph_dir = None
+        return graph.G
+    computed_subdir = os.path.join(files('computed'), graph_dir)
+    target_path = os.path.join(computed_subdir, 'alias-embeddings.pickle')
+    df = pandas.read_pickle(target_path)
+    return df
+
+def annotated_subgraph_transform(graph: deepsnap.graph.Graph) -> nx.Graph:
+    """
+    Replace graphs with subgraphs induced by available annotation data
+    :param datasets:
+    :return:
+    """
+
+    df: pd.DataFrame = read_annotation_data_for_graph(graph)
+    nxG: networkx.Graph = graph.G
+
+    def aggregate_embeddings(embs):
+        embs = [e for e in embs if e is not None]
+        if len(embs) == 0:
+            return None
+        else:
+            return np.mean(embs, axis=0)
+
+    def get_embedding(df, sa_id):
+        # need to check if embedding is available in case we are trying to aggregate info of complex
+        rows = df[df['Element external id'] == sa_id]
+        if len(rows) != 1:  # cannot find alias id in df (or multiple matches)
+            return None
+        else:
+            series = rows.iloc[0]
+            emb = series['aggregated']
+            return emb
+
+    def set_embedding_for_node(graph, node_id, emb):
+        graph.G.nodes[node_id]['node_GO_embedding'] = torch.tensor(emb)
+
+    # node ids for which annotations are available, thus those which should make up the resulting subgraph
+    subgraph_node_ids = set()
+
+    # Iterate over all aliases for which we have embedding info. Try to map these to a node in the graph. If
+    #   the alias does not exist as a node, disregard for now.
+    for row in df.itertuples(name="Row", index=False):
+        sa_id = row[1]
+        emb = row.aggregated
+        assert emb is not None
+        try:
+            sa_node_id = graph['mapping_alias_to_int'][sa_id]
+            set_embedding_for_node(graph, sa_node_id, emb)
+            subgraph_node_ids.add(sa_node_id)
+        except KeyError:
+            # otherwise the speciesAlias is assumed to be contained in a complex. These cases we handle below
+            pass
+
+    # For each root (top-level) complex species alias, lookup embedding info for its contained species aliases,
+    #   aggregate it into a single vector and map that to the root complex species alias.
+    csa_to_contained_sa = groupby(graph.G.graph['sa_root_map'].items(), lambda e: e[1]['id'])
+    csa_to_aggregated_emb = {
+        csa_id: aggregate_embeddings([get_embedding(df, sa[0]) for sa in contained_sa])
+        for csa_id, contained_sa in csa_to_contained_sa.items()
+    }
+    for csa_id, emb in csa_to_aggregated_emb.items():
+        if emb is not None:
+            try:
+                effective_node_id = graph['mapping_alias_to_int'][csa_id]
+            except KeyError:
+                # when dealing with collapsed graph and there are multiple aliases per species (*),
+                # we pick one representative alias to put in the graph. Thus it may be the case here that a species
+                # can not be found in the graph via its species alias id. Hence we need to check in the mapping.
+                # * currently(?) only considering top-level species
+                if not 'is_collapsed' in graph.G.graph or not graph.G.graph['is_collapsed']:
+                    raise KeyError
+                # effective_node_id = graph.G.graph['species_to_representative'][]
+                tla2r = graph.G.graph['top_level_alias_to_representative']
+                repr = tla2r[csa_id]
+                effective_node_id = graph['mapping_alias_to_int'][repr]
+
+            # TODO not properly coalesced into batch?
+            set_embedding_for_node(graph, effective_node_id, emb)
+            subgraph_node_ids.add(effective_node_id)
+
+    # take subgraph because we can only do message-passing on nodes for which we have features
+    return nxG.subgraph(subgraph_node_ids)
+
+
 def fit_apply_normalization(datasets):
     """
     Fit normalizer to external train split, apply to all splits
     :param datasets:
     :return:
     """
+    # TODO BUG: determine train_graphs like in create_loader!
+    # this will respect the internal split but not the external
     train_graphs = datasets[0]
     scalers: dict
     # initialise the scaler(s) using train split
@@ -274,9 +411,9 @@ def undersample_negatives(dsG):
     # subset of node_label_index that has node_label 0
     # indices i with node_label[i] = 0
     zero_ix = node_label_index[(node_label == 0).nonzero()]  # create boolean mask, then call nonzero
-    zero_ix = zero_ix.cpu().numpy()[:,0]
+    zero_ix = zero_ix.cpu().numpy()[:, 0]
     one_ix = node_label_index[(node_label == 1).nonzero()]  # positive class, should be equiv to node_label.nonzero()
-    one_ix = one_ix.cpu().numpy()[:,0]
+    one_ix = one_ix.cpu().numpy()[:, 0]
     if len(zero_ix) == 0 or len(one_ix) == 0:
         warnings.warn(f"{dsG.G.graph['name']} \t only one class in labels!")
         return  # may happen e.g. for absurdly small internal train split
@@ -287,7 +424,7 @@ def undersample_negatives(dsG):
         sampling_strat = 1 / cfg.dataset.undersample_negatives_ratio
 
     rus = RandomUnderSampler(random_state=0, sampling_strategy=sampling_strat, replacement=False)
-    _, y_sampled = rus.fit_resample(np.ones(len(node_label)).reshape(-1,1), node_label)  # cleanup
+    _, y_sampled = rus.fit_resample(np.ones(len(node_label)).reshape(-1, 1), node_label)  # cleanup
     indices_sampled = rus.sample_indices_
 
     node_label_new = dsG['node_label'][indices_sampled]
@@ -299,7 +436,7 @@ def undersample_negatives(dsG):
     assert sum(node_label_new) * (cfg.dataset.undersample_negatives_ratio + 1) == len(node_label_new)
 
 
-def exclude_node_labels(dataset):
+def subset_prediction_nodes(dataset):
     """
     Updates node label tensors to exclude specific nodes.
     :param dataset:
@@ -312,16 +449,15 @@ def exclude_node_labels(dataset):
         print(f"{dsG.G.graph['name']} \t {sum(dsG['node_label'])} label sum (before exclude)")
         included, _ = get_prediction_nodes(dsG.G)
         a = np.intersect1d(included, get_non_rxn_nodes(dsG.G))
-        b, picked, _ = np.intersect1d(dsG['node_label_index'], a, return_indices=True)
-        dsG['node_label_index'] = torch.tensor(b)
-        # node_label should correspond 1:1 to node_label_index, i.e.
-        #    label of nodes[node_label_index][i] is node_label[i]
-        # if we constrain node_label_index we also have to constrain node_label
-        #    ↝ GraphGym/graphgym/contrib/train/SVM.py:51
-        #       cleanup: coalesce into common function call?
-        dsG['node_label'] = dsG['node_label'][picked]
+        label_index_subset(dsG, a)
         print(f"{dsG.G.graph['name']} \t {len(dsG['node_label_index'])} number of labels (after exclude)")
         print(f"{dsG.G.graph['name']} \t {sum(dsG['node_label'])} label sum (after exclude)")
+
+
+def label_index_subset(graph, selected_node_ids):
+    intersection, picked, _ = np.intersect1d(graph['node_label_index'], list(selected_node_ids), return_indices=True)
+    graph['node_label_index'] = torch.tensor(intersection)
+    graph['node_label'] = graph['node_label'][picked]
 
 
 def create_dataset():
@@ -345,6 +481,7 @@ def create_dataset():
         minimum_node_per_graph=min_node)
 
     ## Transform the whole dataset
+    # apply feature augments
     dataset = transform_before_split(dataset)
 
     ## Split dataset

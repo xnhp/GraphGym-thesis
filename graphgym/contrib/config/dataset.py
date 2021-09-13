@@ -62,6 +62,9 @@ def set_cfg_dataset(cfg):
     # of deepsnap.graph.Graph is created
     cfg.dataset.graph_interpretation = "simple"
 
+    # if True, take subgraphs of given graphs induced by the nodes for which annotation data is given
+    cfg.dataset.use_annotated_subgraph = False
+
     # If not None, undersampling on the negative class will be performed. The number of samples
     # to be taken for the negative class will be len(pos_class) * ratio
     # e.g. if we give 2 here, we will have twice as many negative as positive examples

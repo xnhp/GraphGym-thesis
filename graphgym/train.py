@@ -108,8 +108,6 @@ def write_node_id_mappings(loaders, loggers):
     # 607db5: at least for this one we want to manually assess predictions and thus need to map back to alias ids
     # note that the one graph in external test split will correspond to a collapsed version, hence we cannot
     # conveniently open up a CD/SBML drawing of it. But we can still look at the "next"/G_{t+1} which is an actual map.
-    # TODO write batch['mapping_int_to_alias'] to file.
-    # TODO only do this once per run
     ext_train_batch = loaders[2].__iter__().next()
     save_dict(ext_train_batch['mapping_int_to_alias'], "mapping_int_to_alias", loggers[2].out_dir)
 
