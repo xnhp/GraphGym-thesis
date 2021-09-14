@@ -204,7 +204,7 @@ def create_logger(datasets):
         task = 'classification_binary'
         return [
             Logger(name="train", task_type=task),
-            Logger(name="val", task_type=task),
+            # Logger(name="val", task_type=task),
             Logger(name="val-graph", task_type=task)
         ]
     else:  # default implementation

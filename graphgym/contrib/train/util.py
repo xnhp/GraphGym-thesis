@@ -29,10 +29,11 @@ def get_external_split_graphs(datasets) -> Tuple[list[deepsnap.graph.Graph], lis
     # internal train/test split is reflected in datasets[0] and datasets[1], the is_train flag
     # describes the external train/test split (TODO rename)
     train_graphs = [graph for graph in datasets[0].graphs if graph['is_train']]
-    test_graphs = [graph for graph in datasets[1].graphs if graph['is_train']]
+    # test_graphs = [graph for graph in datasets[1].graphs if graph['is_train']]
     # these are the graphs in the external test split. here, we want to consider the entire graph.
-    val_graphs = collect_val_graphs(datasets)
-    return train_graphs, test_graphs, val_graphs
+    # val_graphs = collect_val_graphs(datasets)
+    val_graphs = [graph for graph in datasets[0].graphs if graph['is_test']]
+    return train_graphs, [], val_graphs
 
 
 def logical_and_pad(a, b):
@@ -56,6 +57,7 @@ def logical_and_pad(a, b):
     return torch.logical_and(greater, padded)
 
 
+# deprecated after disabling internal split
 def collect_val_graphs(datasets):
     """
     Collect validation graphs.

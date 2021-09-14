@@ -484,17 +484,20 @@ def create_dataset():
     # apply feature augments
     dataset = transform_before_split(dataset)
 
-    ## Split dataset
     time3 = time.time()
-    # Use custom data splits
-    # dataset.split assumes that node_label and node_label_index is untouched (of length n)
-    datasets = dataset.split(
-        transductive=cfg.dataset.transductive,
-        split_ratio=cfg.dataset.split,
-        shuffle=cfg.dataset.shuffle_split)
-    # We only change the training negative sampling ratio
-    for i in range(1, len(datasets)):
-        dataset.edge_negative_sampling_ratio = 1
+    ## Split dataset
+    # # Use custom data splits
+    # # dataset.split assumes that node_label and node_label_index is untouched (of length n)
+    # datasets = dataset.split(
+    #     transductive=cfg.dataset.transductive,
+    #     split_ratio=cfg.dataset.split,
+    #     shuffle=cfg.dataset.shuffle_split)
+    # # We only change the training negative sampling ratio
+    # for i in range(1, len(datasets)):
+    #     dataset.edge_negative_sampling_ratio = 1
+    #
+
+    datasets = [dataset]
 
     ## Transform each split dataset
     time4 = time.time()
@@ -513,17 +516,17 @@ def create_loader(datasets):
     # node_label_index corresponding to internal split i.
     if cfg.dataset.format == "SBML_multi":
         # consider explicit external split
-        train_graphs, test_graphs, val_graphs = get_external_split_graphs(datasets)
+        train_graphs, _, val_graphs = get_external_split_graphs(datasets)
 
         loader_train = DataLoader(train_graphs, collate_fn=Batch.collate(),
                                   batch_size=cfg.train.batch_size, shuffle=True,
                                   num_workers=cfg.num_workers, pin_memory=False)
 
-        loader_test = DataLoader(test_graphs, collate_fn=Batch.collate(),
-                                 batch_size=cfg.train.batch_size,
-                                 shuffle=False,
-                                 num_workers=cfg.num_workers,
-                                 pin_memory=False)
+        # loader_test = DataLoader([], collate_fn=Batch.collate(),
+        #                          batch_size=cfg.train.batch_size,
+        #                          shuffle=False,
+        #                          num_workers=cfg.num_workers,
+        #                          pin_memory=False)
 
         loader_val = DataLoader(val_graphs, collate_fn=Batch.collate(),
                                 batch_size=cfg.train.batch_size,
@@ -531,7 +534,7 @@ def create_loader(datasets):
                                 num_workers=cfg.num_workers,
                                 pin_memory=False)
 
-        return [loader_train, loader_test, loader_val]
+        return [loader_train, loader_val]
     else:
         # default behaviour
         loader_train = DataLoader(datasets[0], collate_fn=Batch.collate(),

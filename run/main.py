@@ -40,10 +40,10 @@ if __name__ == '__main__':
         setup_printing()
         auto_select_device()
         # Set learning environment
-        datasets = create_dataset()  # also performs internal splits
+        datasets = create_dataset()  # also (potentially) performs internal splits
         loaders = create_loader(datasets)
         meters = create_logger(datasets)
-        model = create_model(datasets)
+        model = create_model(datasets)  # GraphDataset not really needed
         optimizer = create_optimizer(model.parameters())
         scheduler = create_scheduler(optimizer)
         # Print model info

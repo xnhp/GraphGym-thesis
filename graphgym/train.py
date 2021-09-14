@@ -51,11 +51,12 @@ def eval_epoch(logger, loader, model):
 def write_predictions_for_all_splits(model, loaders, loggers, epoch):
     # assume only single batch in loader, else we have to approach this differently
     assert len(loaders[0]) == 1
-    names = ['train', 'test', 'val']  # ↝ compare-models.get_prediction_and_truth
+    # cleanup: remove this
+    names = ['train', 'val']  # ↝ compare-models.get_prediction_and_truth
 
     for loader, logger, name in zip(loaders, loggers, names):
         assert len(loader) <= 1  # == 1 probably suffices currently, think i set that to <= somewhen when messing with internal splits
-        for batch in loader:
+        for batch in loader:   # cleanup: use __iter__().next()
             batch.to(torch.device(cfg.device))
             pred, true = model(batch)
             loss, pred_score = compute_loss(pred, true)
@@ -86,11 +87,9 @@ def train(loggers, loaders, model, optimizer, scheduler):
         # this is a bit weird and would only make sense in the case of having exactly two internal splits
         # also cannot find any example that uses more than two internal splits
         if is_eval_epoch(cur_epoch):
-            for i in range(1, num_splits):
-                if loggers[i].name == 'val':
-                    continue
-                eval_epoch(loggers[i], loaders[i], model)
-                loggers[i].write_epoch(cur_epoch)
+            # loggers[1] is external test split
+            eval_epoch(loggers[1], loaders[1], model)
+            loggers[1].write_epoch(cur_epoch)
             write_predictions_for_all_splits(model, loaders, loggers, cur_epoch)
         if is_ckpt_epoch(cur_epoch):
             save_ckpt(model, optimizer, scheduler, cur_epoch)
@@ -103,14 +102,14 @@ def train(loggers, loaders, model, optimizer, scheduler):
 
 
 def write_node_id_mappings(loaders, loggers):
-    # loaders[2] is external test split
+    # loaders[1] is external test split # 2 before not creating loader for itnernal split
     # assume that there is only one graph in external test split
     # 607db5: at least for this one we want to manually assess predictions and thus need to map back to alias ids
     # note that the one graph in external test split will correspond to a collapsed version, hence we cannot
     # conveniently open up a CD/SBML drawing of it. But we can still look at the "next"/G_{t+1} which is an actual map.
-    ext_train_batch = loaders[2].__iter__().next()
-    save_dict(ext_train_batch['mapping_int_to_alias'], "mapping_int_to_alias", loggers[2].out_dir)
+    ext_test_batch = loaders[1].__iter__().next()  # 2, before not even creating loader for internal split
+    save_dict(ext_test_batch['mapping_int_to_alias'], "mapping_int_to_alias", loggers[1].out_dir)
 
 def write_node_label_index(loaders, loggers):
-    ext_train_batch = loaders[2].__iter__().next()
-    save_labels(ext_train_batch['node_label_index'], 'node_label_index', loggers[2].out_dir)
+    ext_test_batch = loaders[1].__iter__().next()  # 2, before not even creating loader for internal split
+    save_labels(ext_test_batch['node_label_index'], 'node_label_index', loggers[1].out_dir)

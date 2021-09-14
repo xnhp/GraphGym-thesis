@@ -1,6 +1,7 @@
 import numpy as np
 from graphgym.contrib.train.util import save_labels, get_external_split_graphs
 from graphgym.logger import Logger
+from graphgym.train import write_node_id_mappings, write_node_label_index
 
 import deepsnap.graph
 import torch
@@ -79,7 +80,7 @@ def run_svm(loggers, loaders, model, optimizer, scheduler, datasets):
     #   of these graphs has node_label_index set according to internal split
     # So, to recover the external (explicitly given) split, we have to do our own thing.
 
-    train_graphs, test_graphs, val_graphs = get_external_split_graphs(datasets)
+    train_graphs, _, val_graphs = get_external_split_graphs(datasets)
 
     # to feed this into a generic ML model, we need to collect and concat/stack all the features and labels from the
     #   resp. graphs in there
@@ -92,7 +93,7 @@ def run_svm(loggers, loaders, model, optimizer, scheduler, datasets):
     # we additionally need to select the right nodes of the internal split since indices are relative to the single
     # graph
     X_train, Y_train = collect_across_graphs(train_graphs)
-    X_test, Y_test = collect_across_graphs(test_graphs)
+    # X_test, Y_test = collect_across_graphs(test_graphs)
     # internal "split" will point to *all* nodes
     X_val, Y_val = collect_across_graphs(val_graphs)  # no internal split (all nodes)
 
@@ -109,26 +110,25 @@ def run_svm(loggers, loaders, model, optimizer, scheduler, datasets):
     )
     rbf_svc.fit(X_train, Y_train)
 
+    # write model predictions
     pred_train = predict(X_train, Y_train, logger_train, rbf_svc)
     save_labels(Y_train, 'Y_train', logger_train.out_dir)
     save_labels(pred_train[:, 1], 'pred_train', logger_train.out_dir)
-    if X_test.shape[0] > 0:
-        pred_test = predict(X_test, Y_test, logger_test, rbf_svc)
-        save_labels(Y_test, 'Y_test', logger_test.out_dir)
-        save_labels(pred_test[:, 1], 'pred_test', logger_test.out_dir)
-    else:
-        pred_test = torch.tensor([0]).to(torch.float)
-        Y_test = torch.tensor([0]).to(torch.float)
-        save_labels(Y_test, 'Y_test', logger_test.out_dir)
-        save_labels(pred_test, 'pred_test', logger_test.out_dir)
+    # if X_test.shape[0] > 0:
+    #     pred_test = predict(X_test, Y_test, logger_test, rbf_svc)
+    #     save_labels(Y_test, 'Y_test', logger_test.out_dir)
+    #     save_labels(pred_test[:, 1], 'pred_test', logger_test.out_dir)
+    # else:
+    #     pred_test = torch.tensor([0]).to(torch.float)
+    #     Y_test = torch.tensor([0]).to(torch.float)
+    #     save_labels(Y_test, 'Y_test', logger_test.out_dir)
+    #     save_labels(pred_test, 'pred_test', logger_test.out_dir)
     pred_val = predict(X_val, Y_val, logger_val, rbf_svc)
     save_labels(Y_val, 'Y_val', logger_val.out_dir)
     save_labels(pred_val[:, 1], 'pred_val', logger_val.out_dir)
 
-    # write model prediction. Doing so here is simpler than saving/loading the model as we would do
-    #   with the checkpointing facility and pytorch models.
-    # in case of pytorch modules we can load the checkpoint as we did in project?
-    # output only probabilities of "larger" class, 1d expected downstream
+    write_node_id_mappings(loaders, loggers)
+    write_node_label_index(loaders, loggers)
 
     for logger in loggers:
         logger.close()
@@ -136,13 +136,13 @@ def run_svm(loggers, loaders, model, optimizer, scheduler, datasets):
 
 def predict(X, Y, logger, model):
     # evaluate on internal train split
-    pred = model.predict_proba(X)  # will output probability scores!
+    probas = model.predict_proba(X)  # will output probability scores!
     # class prediction obtained via cfg.model.thresh (default 0.5)
-    pred = torch.from_numpy(pred).to(torch.float)
+    probas = torch.from_numpy(probas).to(torch.float)
     # TODO time
-    logger.update_stats(true=Y, pred=pred[:, 1], loss=0, lr=0, time_used=0, params=1)
+    logger.update_stats(true=Y, pred=probas[:, 1], loss=0, lr=0, time_used=0, params=1)
     logger.write_epoch(0)
-    return pred
+    return probas
 
 
 register_train('run_svm', run_svm)
