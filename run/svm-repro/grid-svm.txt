@@ -12,3 +12,5 @@ train.mode mode ['run_svm']
 model.svm_cost C [0.001953125,0.015625,0.125,0.5,1.0]
 model.svm_gamma gamma [0.1]
 model.class_weights weights [3]
+
+# results from running this: C=0.5 performed best

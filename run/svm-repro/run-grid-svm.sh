@@ -8,7 +8,7 @@ export PYTHONPATH="${PYTHONPATH}:/c/Users/Ben/git-repos/deepsnap"
 echo "setting PYTHONPATH to ${PYTHONPATH}"
 
 CONFIG=config
-GRID=grid
+GRID=grid-svm
 REPEAT=1
 MAX_JOBS=5  # from looking at task manager
 SLEEP=1
