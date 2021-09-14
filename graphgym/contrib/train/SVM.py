@@ -102,7 +102,7 @@ def run_svm(loggers, loaders, model, optimizer, scheduler, datasets):
         kernel=cfg.model.svm_kernel,
         class_weight={
             0: 1,
-            1: cfg.model.class_weights
+            1: cfg.model.svm_class_weights
         },
         gamma=cfg.model.svm_gamma,
         C=cfg.model.svm_cost
