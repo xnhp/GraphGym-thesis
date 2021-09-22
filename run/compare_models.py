@@ -5,8 +5,11 @@ import os
 import numpy as np
 from graphgym.utils.io import json_to_dict_list
 from matplotlib import pyplot as plt
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 from mlxtend.plotting import plot_confusion_matrix
-from run.visualisation import save_roc_plot, read_pd_csv, roc_thresh, get_prediction_and_truth, get_model_details
+from run.visualisation import save_roc_plot, read_pd_csv, roc_thresh, get_prediction_and_truth, get_model_details, \
+    tpr_cutoffs, plot_tpr_cutoffs_combined
 from sklearn import metrics
 
 from data.summary import print_model_summary, print_graph_summary
@@ -127,22 +130,35 @@ def split_info(mdls, split):
     pass
 
 
-def save_loss_plot(model, split, target_dir=plot_out_dir):
-    try:
-        targetpath = os.path.join(model['path'], "1", split, "stats.json")
-    except FileNotFoundError:
-        return
-    dictlist = json_to_dict_list(targetpath)
-    # plt.figure(figsize=(6, 3), facecolor='lightgray')
-    plt.title(f"Loss ({split})")
-    plt.xlabel("Epochs")
-    plt.ylabel("Loss")
-    plt.plot([epoch['loss'] for epoch in dictlist])
-    plt.savefig(os.path.join(target_dir, "loss_" + split))
-    plt.close()
+def get_loss_for_split(model, split):
+    dictlist = json_to_dict_list(os.path.join(model['path'], "1", split, "stats.json"))
+    return [epoch['loss'] for epoch in dictlist]
+
+
+def plot_loss(model):
+    fig, ax = plt.subplots()
+    ax: Axes
+    ax.set_title("Loss")
+    ax.set_ylabel("Loss value")
+    ax.set_xlabel("Epoch")
+
+    train_loss = get_loss_for_split(model, 'train')
+    ax.plot(train_loss, label="Train")
+
+    val_loss_y = get_loss_for_split(model, 'val-graph')
+    val_loss_x = range(0, len(train_loss)+1, 10)
+    ax.plot(val_loss_x, val_loss_y, label="Validation")
+    ax.legend(loc='upper right')
+
+    return fig
+
+
+def save_loss_plot(model, target_dir=plot_out_dir):
+    fig: Figure = plot_loss(model)
+    fig.savefig(os.path.join(target_dir, "loss"))
+
 
 def save_conf_mat_aliases(model, target_dir=plot_out_dir):
-
     def write_list(filename, lines):
         with open(os.path.join(target_dir, filename), 'w') as f:
             lines = map(lambda x: x + "\n", lines)
@@ -266,22 +282,6 @@ def data_summary(models):
     return s
 
 
-def tpr_cutoffs(model, split, cutoffs=None):
-    if cutoffs is None:
-        cutoffs = [0.25, 0.5, 0.75]
-    fpr, tpr, t_opt, t_opt_ix = roc_thresh(model, split)
-    return {
-        # find fpr at (close) a given tpr
-        # i.e. "if we want to receive {tpr}% of true positives, how many false positives do we get?"
-        tpr_cutoff: fpr[
-            # find index of largest tpr <= cutoff
-            # assume tpr is in ascending order!
-            len([r for r in tpr if r <= tpr_cutoff]) - 1
-            ]
-        for tpr_cutoff in cutoffs
-    }
-
-
 def tpr_cutoffs_str(model, split):
     s = ""
     cutoffs = tpr_cutoffs(model, split)
@@ -369,6 +369,7 @@ def get_fav_mdls():
     # fav_mdls = [mdl for mdl in models if mdl['name'] in selected_names]
     return fav_mdls
 
+
 def save_summary(models, fav_models, target_dir=plot_out_dir):
     with open(os.path.join(target_dir, "summary.txt"), "w") as f:
         f.write(data_summary(models))
@@ -390,10 +391,10 @@ if __name__ == "__main__":
             # TODO arrange these in subplots
             # NOTE this saves the plots in the subdir of the model results
             print(f"saving plots to {mdl['path']}")
-            save_roc_plot(mdl, split=split, target_dir=mdl['path'])
             save_conf_mat_plot(mdl, split=split, target_dir=mdl['path'])
             save_conf_mat_aliases(mdl, target_dir=mdl['path'])
-            save_loss_plot(mdl, split=split, target_dir=mdl['path'])
+        save_roc_plot(mdl, target_dir=mdl['path'])
+        save_loss_plot(mdl, target_dir=mdl['path'])
     if not args.from_config:
         models = read_model_results(grid_out_dir)
         save_summary(models, fav_mdls)

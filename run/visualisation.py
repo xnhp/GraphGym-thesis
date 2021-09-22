@@ -4,35 +4,15 @@ import numpy as np
 import pandas as pd
 from graphgym.utils.io import json_to_dict_list
 from matplotlib import pyplot as plt
+from matplotlib.axes import Axes
+from scikitplot import metrics
 from sklearn import metrics
 
 
-def save_roc_plot(model, split="train", plot_random=True, target_dir=None):
-    fpr, tpr, _, _ = roc_thresh(model, split)
-    roc_auc = metrics.auc(fpr, tpr)
-    plt.title(f'Receiver Operating Characteristic ({split})')
-    plt.plot(fpr, tpr, 'b', label='AUC = %0.2f' % roc_auc)
-
-    if plot_random:
-        y_true, _ = get_prediction_and_truth(model, split)
-        y_score = np.random.random(len(y_true))
-        fpr, tpr, _, _ = _roc_thresh(y_true, y_score)
-        roc_auc = metrics.auc(fpr, tpr)
-        plt.plot(fpr, tpr, 'r', label='AUC (random cl.) = %0.2f' % roc_auc)
-
-    plt.legend(loc='lower right')
-    plt.plot([0, 1], [0, 1], '--')
-    plt.xlim([0, 1])
-    plt.ylim([0, 1])
-    ticks = np.append(np.arange(0, 1, step=0.25), 1)
-    plt.xticks(ticks)
-    plt.yticks(ticks)
-    plt.grid(b=True, linestyle="dotted")
-    plt.ylabel('True Positive Rate')
-    plt.xlabel('False Positive Rate')
-    plt.savefig(os.path.join(target_dir, "roc_" + split))
-    plt.close()
-
+def save_roc_plot(model, target_dir=None):
+    fig, ax = init_fig()
+    plot_roc_combined(ax, [model], ['train', 'val-graph'])
+    fig.savefig(os.path.join(target_dir, "roc"))
 
 def read_pd_csv(path):
     df = pd.read_csv(path)
@@ -117,3 +97,114 @@ def get_model_details(model_dir):
                key: find_stats(key)
                for key in ['train', 'val-graph']
            }
+
+
+readable_split_names = {
+    'train': "Training",
+    'val-graph': "Validation"
+}
+
+
+def init_fig(rows=1, cols=1):
+    # return Figure (overall wrapper)
+    # ax : `.axes.Axes` or array of Axes
+    fig, ax = plt.subplots(rows, cols)
+    return fig, ax
+
+
+def plot_roc_combined(ax: Axes, models, splits):
+    # list of models as given by get_model_details
+    if len(splits) == 1:
+        ax.set_title(f"ROC ({readable_split_names[splits[0]]})")
+    else:
+        ax.set_title(f"ROC")
+    ax.set_xlim([0, 1])
+    ax.set_ylim([0, 1])
+    ax.plot([0, 1], [0, 1], '--')  # 0.5 line
+    ticks = np.append(np.arange(0, 1, step=0.25), 1)
+    ax.set_xticks(ticks)
+    ax.set_yticks(ticks)
+    ax.grid(b=True, linestyle="dotted")
+    ax.set_ylabel("True Positive Rate")
+    ax.set_xlabel("False Positive Rate")
+    for model in models:
+        for split in splits:
+            plot_roc_onto(ax, model, split)
+    ax.legend(loc='lower right')
+    return ax
+
+
+def guess_color(model_name):
+    # list of colours (with actually displaying the colors)
+    # https://stackoverflow.com/a/37232760/156884
+    if "gnn" in model_name:
+        return "darkorange"
+    elif "gcn" in model_name:
+        return "goldenrod"
+    elif "gat" in model_name:
+        return "darkkhaki"
+    elif "svm" in model_name:
+        return "cornflowerblue"
+    else:
+        return "r"
+
+
+def plot_roc_onto(ax:Axes, model_details, split):
+    # plot ROC of model_details onto the given ax
+    fpr, tpr, _, _ = roc_thresh(model_details, split)
+    roc_auc = metrics.auc(fpr, tpr)
+    # TODO somehow describe model
+    label_text = f"{model_details['name']}/{split} (AUC={roc_auc:1.2f})"
+    ax.plot(fpr, tpr, guess_color(model_details['name']), label=label_text)
+    ax.legend(loc='lower right')
+
+
+def tpr_cutoffs(model, split, cutoffs=None):
+    if cutoffs is None:
+        cutoffs = [0.25, 0.5, 0.75]
+    fpr, tpr, t_opt, t_opt_ix = roc_thresh(model, split)
+    return {
+        # find fpr at (close) a given tpr
+        # i.e. "if we want to receive {tpr}% of true positives, how many false positives do we get?"
+        tpr_cutoff: fpr[
+            # find index of largest tpr <= cutoff
+            # assume tpr is in ascending order!
+            len([r for r in tpr if r <= tpr_cutoff]) - 1
+            ]
+        for tpr_cutoff in cutoffs
+    }
+
+
+def plot_tpr_cutoffs_onto(ax:Axes, model_details, split, group_ix, bar_sz):
+    cutoffs = tpr_cutoffs(model_details, split)
+    bar_x = [x + bar_sz * group_ix for x in np.arange(len(cutoffs.values()))]
+    rects = ax.barh(bar_x, cutoffs.values(), height=bar_sz*0.9, color=guess_color(model_details['name']))
+    return rects
+    # TODO show absolute values for each bar ("rect") like here https://matplotlib.org/2.0.2/examples/api/barchart_demo.html
+    # for rect in rects:
+    #     width = rect.get_width()
+    #     ax.text(rect.get_)
+
+
+def plot_tpr_cutoffs_combined(ax: Axes, models, split):
+    # TODO title etc
+    bar_sz = 0.25
+    ax: Axes
+    ax.set_title("FPR values at TPR cutoffs")
+    cutoffs_dummy = tpr_cutoffs(models[0], split)
+    yticks_y = [r + bar_sz for r in range(len(cutoffs_dummy.values()))]
+    ax.grid(b=True, linestyle="dotted", axis='x')
+    ax.set_yticks(yticks_y)
+    yticklabels = [f"{val:1.2f}" for val in cutoffs_dummy.keys()]
+    ax.set_yticklabels(yticklabels)
+    ax.set_xlabel("False Positive Rate")
+    ax.set_ylabel("TPR cutoffs")
+    legs_a = []
+    legs_b = []
+    for group_ix, model_details in enumerate(models):
+        rects = plot_tpr_cutoffs_onto(ax, model_details, split, group_ix, bar_sz)
+        legs_a.append(rects[0])
+        legend = f"{model_details['name']}/{split}"
+        legs_b.append(legend)
+    ax.legend(legs_a, legs_b, loc="lower right")
+    return ax
