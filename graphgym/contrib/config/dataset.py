@@ -65,6 +65,12 @@ def set_cfg_dataset(cfg):
     # if True, take subgraphs of given graphs induced by the nodes for which annotation data is given
     cfg.dataset.use_annotated_subgraph = False
 
+    # if True, compute stddev of annotation embeddings of neighbours and use as feature node_GO_stddev
+    cfg.dataset.use_stddev_feature = False
+
+    # if True, use embeddings of GO terms as node feautres node_GO_embedding
+    cfg.dataset.use_embed_feature = False
+
     # If not None, undersampling on the negative class will be performed. The number of samples
     # to be taken for the negative class will be len(pos_class) * ratio
     # e.g. if we give 2 here, we will have twice as many negative as positive examples

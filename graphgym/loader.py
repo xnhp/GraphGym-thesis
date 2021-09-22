@@ -12,7 +12,7 @@ import pickle
 import numpy as np
 import pandas
 import pandas as pd
-from graphgym.contrib.feature_augment.util import get_prediction_nodes, get_non_rxn_nodes
+from graphgym.contrib.feature_augment.util import get_prediction_nodes, get_non_rxn_nodes, nx_get_interpretations
 from graphgym.contrib.train.util import get_external_split_graphs
 from graphgym.contrib.transform.normalize import normalize_scale, normalize_fit
 from imblearn.under_sampling import RandomUnderSampler
@@ -294,7 +294,7 @@ def read_annotation_data_for_graph(graph):
     # how to obtain the previously written information here?
     # ... need to get the right one for the current graph
     if "AlzPathway" in graph['name']:
-        graph_dir = "mizuno_AlzPathwayComprehensiveMap_2021"
+        graph_dir = "ADReorgLast"
     elif "pd" in graph['name'] or "PD" in graph['name']:
         graph_dir = "pd_map_autumn_19"
     else:
@@ -312,8 +312,11 @@ def annotated_subgraph_transform(graph: deepsnap.graph.Graph) -> nx.Graph:
     :return:
     """
 
+
+    # assume graph and graph.G are already bipartite projection
+
     df: pd.DataFrame = read_annotation_data_for_graph(graph)
-    nxG: networkx.Graph = graph.G
+
 
     def aggregate_embeddings(embs):
         embs = [e for e in embs if e is not None]
@@ -325,28 +328,33 @@ def annotated_subgraph_transform(graph: deepsnap.graph.Graph) -> nx.Graph:
     def get_embedding(df, sa_id):
         # need to check if embedding is available in case we are trying to aggregate info of complex
         rows = df[df['Element external id'] == sa_id]
-        if len(rows) != 1:  # cannot find alias id in df (or multiple matches)
+        if len(rows) == 0:  # cannot find alias id in df (or multiple matches)
             return None
         else:
+            if len(rows) > 1:
+                print("more than one row for alias found")
             series = rows.iloc[0]
             emb = series['aggregated']
             return emb
 
     def set_embedding_for_node(graph, node_id, emb):
-        graph.G.nodes[node_id]['node_GO_embedding'] = torch.tensor(emb)
+        if cfg.dataset.use_embed_feature:
+            graph.G.nodes[node_id]['node_GO_embedding'] = torch.tensor(emb)
 
     # node ids for which annotations are available, thus those which should make up the resulting subgraph
     subgraph_node_ids = set()
+    all_embs = {}  # what we would set as node attribute
 
     # Iterate over all aliases for which we have embedding info. Try to map these to a node in the graph. If
     #   the alias does not exist as a node, disregard for now.
     for row in df.itertuples(name="Row", index=False):
-        sa_id = row[1]
+        sa_id = row[0]
         emb = row.aggregated
         assert emb is not None
         try:
             sa_node_id = graph['mapping_alias_to_int'][sa_id]
             set_embedding_for_node(graph, sa_node_id, emb)
+            all_embs[sa_node_id] = torch.tensor(emb)
             subgraph_node_ids.add(sa_node_id)
         except KeyError:
             # otherwise the speciesAlias is assumed to be contained in a complex. These cases we handle below
@@ -360,6 +368,7 @@ def annotated_subgraph_transform(graph: deepsnap.graph.Graph) -> nx.Graph:
         for csa_id, contained_sa in csa_to_contained_sa.items()
     }
     for csa_id, emb in csa_to_aggregated_emb.items():
+        # if emb is None then csa contained to aliases that could be mapped to embeddings
         if emb is not None:
             try:
                 effective_node_id = graph['mapping_alias_to_int'][csa_id]
@@ -377,10 +386,35 @@ def annotated_subgraph_transform(graph: deepsnap.graph.Graph) -> nx.Graph:
 
             # TODO not properly coalesced into batch?
             set_embedding_for_node(graph, effective_node_id, emb)
+            all_embs[effective_node_id] = torch.tensor(emb)
             subgraph_node_ids.add(effective_node_id)
 
+    # len(subgraph_node_ids) for ADReorgLast (collapsed) is 409 -- exactly the number of *species* for which
+    #   we have annotations, exactly the number we count in AP -- checks out
+
+    # more than one row for alias found for PDMap (collapsed) -- seems like a problem, lets try to integrate this
+    #   in the AP workflow
+
     # take subgraph because we can only do message-passing on nodes for which we have features
-    return nxG.subgraph(subgraph_node_ids)
+    #   ↝ [[^7901e2]]
+    # remove isolated nodes because it does not make sense to use them with this featureset (based on
+    #   heterogeneity of neighbourhood)
+    subgraph = graph.G.subgraph(subgraph_node_ids).copy()
+    isolated = [node for node, degree in subgraph.degree() if degree == 0]
+    subgraph.remove_nodes_from(isolated)
+
+    # compute stddev over embeddings of neighbour for each node
+    if cfg.dataset.use_stddev_feature:
+        for node in subgraph.nodes:
+            # get info we attached before
+            # basically we want to stack the embeddings for all neighbours
+            neighb_embs_stacked = torch.stack([all_embs[neigh] for neigh in list(subgraph.neighbors(node))])
+            stddev = torch.std(neighb_embs_stacked, dim=0, unbiased=False)
+            subgraph.nodes[node]['node_GO_stddev'] = stddev
+
+    assert len(subgraph.nodes) > 0
+    # cleanup: coalesce
+    return subgraph
 
 
 def fit_apply_normalization(datasets):
@@ -445,13 +479,13 @@ def subset_prediction_nodes(dataset):
     for dsG in dataset:
         # ↝ GraphGym/graphgym/contrib/train/SVM.py:41 (collect_per_graph)
         # cleanup: can most probably avoid some computations here
-        print(f"{dsG.G.graph['name']} \t {len(dsG['node_label_index'])} number of labels (before exclude)")
-        print(f"{dsG.G.graph['name']} \t {sum(dsG['node_label'])} label sum (before exclude)")
+        print(f"{dsG.G.graph['name']} \t before exclude \t number of labels \t {len(dsG['node_label_index'])} number of labels ")
+        print(f"{dsG.G.graph['name']} \t before exclude \t label sum {sum(dsG['node_label'])} label sum ")
         included, _ = get_prediction_nodes(dsG.G)
         a = np.intersect1d(included, get_non_rxn_nodes(dsG.G))
         label_index_subset(dsG, a)
-        print(f"{dsG.G.graph['name']} \t {len(dsG['node_label_index'])} number of labels (after exclude)")
-        print(f"{dsG.G.graph['name']} \t {sum(dsG['node_label'])} label sum (after exclude)")
+        print(f"{dsG.G.graph['name']} \t after exclude \t number of labels \t {len(dsG['node_label_index'])} number of labels ")
+        print(f"{dsG.G.graph['name']} \t after exclude \t label sum {sum(dsG['node_label'])} label sum ")
 
 
 def label_index_subset(graph, selected_node_ids):

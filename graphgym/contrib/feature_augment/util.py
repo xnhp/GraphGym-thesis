@@ -190,7 +190,8 @@ def get_prediction_nodes(nxG: networkx.Graph) -> Tuple[np.array, np.array]:
     # node_label_index are ids of nodes appearing in this internal split
 
     excluded = np.union1d(complex_to_exclude, low_deg_to_exclude)
-    included = np.setdiff1d(nxG.nodes, excluded)
+    # TODO for train-on-many, for some reason this contains one node which equals None
+    included = np.setdiff1d([n for n in nxG.nodes if n is not None], excluded)
     return included, excluded
 
     # cleanup: also include non-rxn nodes? still need to ensure that outside
@@ -332,8 +333,16 @@ def collect_feature_augment(graph: deepsnap.graph.Graph):
     # ↝ graphgym.models.feature_augment.Preprocess.forward
     # need to index here because tensors need to be of same size for torch.cat
     node_index = get_non_rxn_nodes(graph.G)
+
+    # hacky way to also consider GO features which we currently do not compute via feature augments
+    feat_keys = cfg.dataset.augment_feature.copy()
+    if cfg.dataset.use_embed_feature:
+        feat_keys.append("node_GO_embedding")
+    if cfg.dataset.use_stddev_feature:
+        feat_keys.append("node_GO_stddev")
+
     return torch.cat(
-        [graph[name][node_index].float() for name in cfg.dataset.augment_feature],
+        [graph[feat_key][node_index].float() for feat_key in feat_keys],
         dim=1)
 
 
