@@ -26,6 +26,11 @@ def in_degree_fun(graph: deepsnap.graph.Graph, **kwargs):
 register_feature_augment('node_in_degree', in_degree_fun)
 
 
+def constant_fun(graph: deepsnap.graph.Graph, **kwargs):
+    return [1 for _ in graph.G.nodes]
+register_feature_augment('node_constant', constant_fun)
+
+
 def out_degree_fun(graph: deepsnap.graph.Graph, **kwargs):
     mDiG: nx.MultiDiGraph = graph.G.graph['nx_multidigraph']
     nodes_requested = [graph.mapping_int_to_alias[id] for id in kwargs['nodes_requested']]

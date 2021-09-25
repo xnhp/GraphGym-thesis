@@ -406,11 +406,14 @@ def annotated_subgraph_transform(graph: deepsnap.graph.Graph) -> nx.Graph:
     # compute stddev over embeddings of neighbour for each node
     if cfg.dataset.use_stddev_feature:
         for node in subgraph.nodes:
-            # get info we attached before
-            # basically we want to stack the embeddings for all neighbours
+            # take the stddev w.r.t euclidean (l_2) distance to centroid/mean, this then reduces to the "mean" of variances
+            # ↝ https://math.stackexchange.com/a/852779/450919
             neighb_embs_stacked = torch.stack([all_embs[neigh] for neigh in list(subgraph.neighbors(node))])
-            stddev = torch.std(neighb_embs_stacked, dim=0, unbiased=False)
-            subgraph.nodes[node]['node_GO_stddev'] = stddev
+            vars = torch.var(neighb_embs_stacked, dim=0, unbiased=False)  # variance for each dimension
+            stddev = torch.mean(vars)  # 1/n ( var(x) + var(y) + var(z) )
+            # ↑ this is a single number!
+            subgraph.nodes[node]['node_GO_stddev'] = torch.tensor([stddev])  # need to wrap in list because features
+            #   are required to be 1D tensors
 
     assert len(subgraph.nodes) > 0
     # cleanup: coalesce
